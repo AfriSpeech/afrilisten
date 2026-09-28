@@ -247,22 +247,25 @@ the full list of configuration and a verified end-to-end check.
 
 ### The key stays on your server
 
-Get a key from [Google AI Studio](https://aistudio.google.com/apikey) and enable
-billing on the project. The key never leaves the token service's environment —
-what it hands out is short-lived, scoped tokens, never the key itself.
+Get a key from [Google AI Studio](https://aistudio.google.com/apikey). No
+billing account is required — the Live API has a free tier — but a free-tier
+key is metered *more* tightly, not less, which is exactly why the rate limits
+below matter regardless of which kind of key you use. The key never leaves the
+token service's environment; what it hands out is short-lived, scoped tokens,
+never the key itself.
 
-Three rules, in the order they will bite you:
+Two rules, in the order they will bite you:
 
 1. **Never put the Gemini key in browser code.** The widget only ever holds
    the shared client key (not a secret, just a traffic label) and the tokens
    the service mints for it. The Gemini key is a server secret.
 2. **Set your own rate limits.** The defaults (5 per minute per address, 100 per
-   day, and a daily budget) are what protect a shared key. Decide your own
-   numbers for a key you are paying for — this is what bounds how many tokens,
-   and so how many Live sessions, a caller can start.
-3. **Budget alert on in AI Studio.** Turns are billed by output audio, and this
-   endpoint is reachable by the public. The alert is how you find out before
-   the bill does.
+   day, and a daily budget) are what protect the key from being exhausted by
+   more traffic than it can serve — this is what bounds how many tokens, and
+   so how many Live sessions, a caller can start. If the key is on a paid tier,
+   also turn on a budget alert in AI Studio: turns are billed by output audio,
+   and this endpoint is reachable by the public, so the alert is how you find
+   out before the bill does.
 
 ### Or just call Gemini yourself
 

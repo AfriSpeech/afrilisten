@@ -17,26 +17,35 @@ synthesis takes, because none happens here.
 
 ## Whose key is it
 
-**The key is one you supply, on your own billing.** It is the only real cost
-in this service, and the one thing you cannot share. Whoever deployed an
-instance pays for it, and `GET /languages` returns a `notice` saying so.
+**The key is one you supply.** It is the one thing you cannot share, whether
+or not it costs money. Whoever deployed an instance owns it, and
+`GET /languages` returns a `notice` saying so.
 
-- `GEMINI_API_KEY` is what mints tokens, on your billing. It never leaves this
-  service's environment; browsers only ever receive the short-lived tokens
-  minted from it.
+- `GEMINI_API_KEY` is what mints tokens. It never leaves this service's
+  environment; browsers only ever receive the short-lived tokens minted
+  from it.
+- **No billing account is required.** The Live API has a free tier, and a key
+  from [Google AI Studio](https://aistudio.google.com/apikey) with no billing
+  attached works. What that tier does not have is a generous rate limit: it is
+  metered *more* tightly than a paid key, not less, and Google does not
+  publish "unlimited" anything for it — this project measured 8 concurrent
+  Live sessions served and 16 with 11 refused for quota on one key, which is
+  the honest ceiling to plan around rather than an assumption.
 
 For a real deployment, the difference from a demo is entirely in these:
 
-- The key is created by you, with billing enabled, and you accept the cost.
+- The key is created by you, and whichever tier it is on, you accept what
+  happens when its limit is hit.
 - It is a secret, never a variable in a config file and never anything in
   browser code.
 - `LISTEN_RATE_*` and `LISTEN_BUDGET_PER_DAY` are set to limits you chose. The
   defaults bound the damage; they are not access control. They are what
-  actually caps this deployment's cost, because each one bounds how many
-  tokens — and so how many Gemini Live sessions — can be minted.
-- Turn on a budget alert in AI Studio. This service is reachable by the public
-  and Gemini bills by output audio, so the alert is how you find out before
-  the invoice does.
+  actually caps this deployment's cost — or, on a free-tier key, what keeps a
+  quiet burst of traffic from exhausting it for everyone — because each one
+  bounds how many tokens, and so how many Gemini Live sessions, can be minted.
+- If the key is on a paid tier, turn on a budget alert in AI Studio. This
+  service is reachable by the public and Gemini bills by output audio, so the
+  alert is how you find out before the invoice does.
 
 ## Requirements
 
