@@ -3,7 +3,7 @@
 Turn any web page into audio, in the reader's own language.
 
 Drop one script tag on your site and readers get a **Listen** button that reads
-the page they are on, translated into any of 43 African languages and spoken
+the page they are on, translated into any of 457 African languages and spoken
 aloud. No build step, no framework, no SDK to install.
 
 ## How this works
@@ -201,30 +201,45 @@ failed piece, running a few at a time, the WAV header).
 
 ## The languages
 
-43, chosen because they are the ones with speakers, not the ones with the
-best models. The page is translated into the reader's language and then spoken
-in full, so what comes back is the page rather than a summary of it.
+457, chosen by measurement rather than guesswork: a language is offered when
+Gemini scored medium tier or better (at least 30% pass) translating into it in
+[gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench), a
+word-level round-trip-translation benchmark run across every living language
+afriso attributes to an African country. A short, specific list is cut from
+that regardless of score — Arabic's many varieties, Spanish, Yiddish, Eastern
+Yiddish, Ladino — because the benchmark's criterion is "spoken in an African
+country," which nets a few colonial and diaspora languages along with the
+rest. Everything else that clears the bar is in, including languages that are
+Indo-European or Austronesian by family but are mother tongues of African
+populations rather than imports: Malagasy, Afrikaans, and creoles like Krio,
+Kabuverdianu and Cameroon Pidgin.
+
+Not going through a separate translation service any more is what makes this
+list possible: it used to be bounded by which languages Google Translate
+supported, and now it is bounded only by how well Gemini itself translates
+into a language, which the benchmark measures directly rather than assumes.
 
 ```js
 const { languages } = await fetch(`${BASE}/languages`).then((r) => r.json());
 ```
 
-`code` is the AfriSpeech code you pass as the translate-to language. `google` is
-a provider code carried over from when this list was built around Google
-Translate; it is still returned, and still accepted, so existing integrations
-keep working, but nothing in the current pipeline reads it.
+`code` is the AfriSpeech code you pass as the translate-to language. `google`
+is a provider code carried over from when this list was built around Google
+Translate; it is still returned for the languages that had one, and still
+accepted, so existing integrations keep working, but nothing in the current
+pipeline reads it — a language added since has its own iso639_3 code there
+instead, since there never was a Google Translate association to carry.
 The service is the only authority on this list, so read it from `/languages`
-rather than hardcoding it; the 43 currently returned are:
+rather than hardcoding it or this README's count, which will drift as the
+benchmark is rerun. `scripts/build-languages.mjs` regenerates it from a fresh
+benchmark run and afriso's current data with `npm run build:speech-data`.
 
-Afrikaans, Akan, Amharic, Baoulé, Bemba (Zambia), Chichewa, Dinka, Dombe,
-Dyula, Ewe, Fon, Fulah, Igbo, Kinyarwanda, Kongo, Krio, Lingala,
-Luo (Kenya and Tanzania), Malagasy, Ndau, Nuer, Oromo, Pedi, Rundi, Sango,
-Seselwa Creole French, Shona, Somali, South Ndebele, Southern Sotho,
-Standard Moroccan Tamazight, Swahili (individual language), Swati, Tigrinya,
-Tiv, Tsonga, Tswana, Tumbuka, Venda, Wolof, Xhosa, Yoruba, Zulu.
+A deployer can narrow this to a subset — specific languages, specific
+countries, or everything — with `LISTEN_LANGUAGES` / `LISTEN_COUNTRIES`; see
+[DEPLOY.md](DEPLOY.md).
 
 One thing worth knowing: **there is one voice, and it is not a native speaker
-of any of these 43 languages.** Gemini Live reads the page in the target
+of any of these languages.** Gemini Live reads the page in the target
 language with a voice chosen for clarity, which produces the right words with
 an accent a speaker of that language would not use. There is no per-language
 voice to select from, so the claim cannot honestly be made that a given

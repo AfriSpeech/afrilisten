@@ -173,7 +173,7 @@ Put a reverse proxy or platform load balancer in front of it for TLS, and set
 ## Verifying a deployment
 
 ```sh
-# 43 languages, plus the speech settings the widget needs
+# 457 languages, plus the speech settings the widget needs
 curl -s https://<host>/languages | head -c 200
 
 # no key is refused
@@ -233,7 +233,7 @@ npm run test:e2e          # real Gemini: mints a token and speaks with it
 | `src/lib/tokens.mjs` | Mints ephemeral Gemini Live tokens, locked to a model, voice and audio-only output. |
 | `src/lib/auth.mjs` | The shared key and the origin allowlist. |
 | `src/lib/ratelimit.mjs` | Per-address and shared-budget limits on minting. |
-| `src/lib/languages.mjs` | The 43-language catalogue. |
+| `src/lib/languages.mjs` | The language catalogue (457, benchmark-selected -- see README.md). |
 | `test/` | One file per area, each runnable on its own. |
 | `public/afrispeech-listen.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |
 | `public/afrispeech/readability.min.js` | Vendored copy of Mozilla's Readability, used by the widget to extract article text. Kept alongside the widget so the two are always the same version. |

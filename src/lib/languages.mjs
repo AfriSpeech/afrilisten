@@ -76,12 +76,12 @@ const DEFAULT_BY_COUNTRY = {
   // East
   TZ: 'swh', KE: 'swh', UG: 'swh', RW: 'kin', BI: 'run', CD: 'lin',
   CG: 'lin', GA: 'fon', CM: 'fon', CF: 'sag', ET: 'amh', SO: 'som',
-  DJ: 'som', ER: 'tir', SS: 'din', SD: 'din',
+  DJ: 'som', ER: 'tir', SS: 'shk', SD: 'shk',
   // Southern
   ZA: 'zul', ZW: 'sna', ZM: 'sna', BW: 'swh', NA: 'afr', LS: 'sot',
   SZ: 'ssw', MW: 'nya',
   // West
-  NG: 'yor', GH: 'aka', TG: 'aka', CI: 'bci', SN: 'wol', GM: 'wol',
+  NG: 'yor', GH: 'aka', TG: 'aka', CI: 'dyu', SN: 'wol', GM: 'wol',
   // North and islands
   MA: 'zgh', MG: 'mlg', SC: 'crs',
 };
