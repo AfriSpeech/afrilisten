@@ -555,10 +555,13 @@
 
   /** The same thumb, flipped for "down" via a viewBox transform. */
   function thumbIcon(down) {
-    var flip = down ? ' transform="translate(0,24) scale(1,-1)"' : '';
-    return '<svg viewBox="0 0 24 24" aria-hidden="true"' + flip + '>' +
+    // The transform has to sit on an inner <g>, not the <svg> root: some
+    // browsers simply ignore a transform attribute there, which is what left
+    // an empty button outline with the icon rendered off in the corner.
+    var open = down ? '<g transform="translate(0,24) scale(1,-1)">' : '<g>';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true">' + open +
       '<path d="M2 21h3V10H2v11zm19-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L12.17 1 6.59 6.59A2 2 0 0 0 6 8v11a2 2 0 0 0 2 2h9a2 2 0 0 0 1.83-1.2l3.02-7.05A2 2 0 0 0 22 12v-1.83z"/>' +
-      '</svg>';
+      '</g></svg>';
   }
 
   function build() {
