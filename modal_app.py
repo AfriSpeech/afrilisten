@@ -60,7 +60,19 @@ image = (
     secrets=[modal.Secret.from_name("afrispeech-listen-secrets")],
     timeout=1800,
     min_containers=0,
-    scaledown_window=300,
+    # Minting a token is one small JSON round trip to Google, not compute
+    # work, so this asks for Modal's floor rather than its default-if-unset
+    # (which happens to be the same number, but stated explicitly here so it
+    # stays true on purpose rather than by accident of what Modal defaults to).
+    cpu=0.125,
+    memory=128,
+    # How long an idle container is kept warm before scaling back to zero --
+    # and so how long a burst of traffic is billed for after it actually
+    # stops, since min_containers=0 means nothing runs, and nothing is
+    # billed, outside of that window. Short on purpose: a cold start here is
+    # a Node process starting, not a container image being pulled fresh, so
+    # the latency cost of scaling to zero quickly is small.
+    scaledown_window=60,
 )
 @modal.concurrent(max_inputs=32)
 @modal.web_server(PORT, startup_timeout=60)
