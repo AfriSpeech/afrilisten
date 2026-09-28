@@ -77,7 +77,10 @@ crashes without it. The allowlist is only enforced when it is non-empty, so
 leaving it unset lets any site on the internet mint tokens from a reader's
 browser and spend the Gemini quota. The browser will refuse to *read* the
 reply, but the token is already minted by then. The rate limits are what cap
-the cost.
+the cost. This only applies to `/token`: `/feedback` and `/feedback/report`
+are public regardless of this setting, since they are meant to be reachable
+from every site using the standard widget, not just yours — see
+[Feedback](#feedback).
 
 ## Optional tuning
 
@@ -162,18 +165,33 @@ from the same endpoint.
 
 ### Feedback
 
-`POST /feedback` (`{ "languageCode": "swh", "rating": "up" }`) and
-`GET /feedback/report` both sit behind the same key as `/token` — there is no
-second secret to provision, and "the deployer sees it" just means whoever
-holds that key:
+Feedback is pooled across every deployment, not per-deployer: the widget's
+thumbs up/down always reports to this project's own reference deployment
+(`FEEDBACK_ENDPOINT` in `public/afrispeech-listen.js`), regardless of which
+token service a given site configured for translation and speech. A rating
+is a signal about how well Gemini translates into a language in general, not
+something specific to one deployer's readers, so there is one pool rather
+than every deployer starting a separate, empty one.
+
+That means **you do not deploy anything for feedback to work** — it is
+already live for anyone using the standard widget. `POST /feedback` and
+`GET /feedback/report` are both public, with no key, unlike `/token`:
 
 ```sh
-curl -s https://<host>/feedback/report -H 'x-listen-key: <key>'
+curl -s https://michsethowusuwfp--afrispeech-listen-serve.modal.run/feedback/report
 # -> {"report":{"swh":{"up":12,"down":2,"total":14,"upRate":85.7}, ...}}
 ```
 
-Build whatever page or dashboard you want over that endpoint; this repository
-does not ship one, since what a deployer wants to see is specific to them.
+Anyone can read that link; build whatever page or dashboard you want over it.
+This repository does not ship one.
+
+If you deploy your own instance of this service (for translation and speech,
+on your own Gemini key), its own `/feedback` routes exist in the same
+codebase but are not what the standard widget uses — pointing your own
+deployment's widget at a different feedback pool would mean editing
+`FEEDBACK_ENDPOINT` in a copy of the widget, which forfeits "always latest"
+from jsDelivr. Only do that if you specifically want a private, unpooled set
+of ratings instead of the shared one.
 
 ### What this costs
 

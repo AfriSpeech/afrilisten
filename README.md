@@ -43,9 +43,10 @@ Put this in the `<head>` of any page with article text on it:
 
 That is the whole integration. A button appears in the corner, pressing it
 reads the page, and once the audio is ready a thumbs up/down sits under the
-player so a reader can say whether it sounded right. Ratings go to your own
-deployment (`POST /feedback`), and you can pull per-language stats back out
-of it at any time (`GET /feedback/report`, behind your own key) — see
+player so a reader can say whether it sounded right. Every widget everywhere
+reports to the same pool — a rating is a signal about how well Gemini
+translates into a language in general, not something specific to your site's
+readers — and the aggregate is public for anyone to read, no key needed: see
 [Feedback](DEPLOY.md#feedback) in DEPLOY.md.
 
 The script src above points at `main` in this repository, not a pinned
