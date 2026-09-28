@@ -7,7 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { SPEECH_LANGUAGES, OFFERED_LANGUAGES, findSpeechLanguage, defaultForLocale, languageCatalogue } from '../src/lib/languages.mjs';
+import { SPEECH_LANGUAGES, OFFERED_LANGUAGES, findSpeechLanguage, defaultForLocale, languageCatalogue, scopedLanguages } from '../src/lib/languages.mjs';
 
 let passed = 0;
 const t = (name, fn) => {
@@ -101,6 +101,32 @@ t('the catalogue payload carries only what the dropdown needs', () => {
   for (const entry of list) {
     assert.deepEqual(Object.keys(entry).sort(), ['code', 'countries', 'google', 'name']);
   }
+});
+
+t('with nothing configured, everything is offered', () => {
+  assert.equal(scopedLanguages([], []), OFFERED_LANGUAGES);
+  assert.equal(scopedLanguages(), OFFERED_LANGUAGES);
+});
+
+t('specific codes narrow to exactly those languages', () => {
+  const scoped = scopedLanguages(['yor', 'swh'], []);
+  assert.deepEqual(scoped.map((l) => l.code).sort(), ['swh', 'yor']);
+});
+
+t('a country adds every language attributed to it', () => {
+  const scoped = scopedLanguages([], ['GH']);
+  assert.ok(scoped.length > 1, 'Ghana has more than one language in the table');
+  assert.ok(scoped.every((l) => l.countries.includes('GH')));
+  const aka = findSpeechLanguage('aka');
+  assert.ok(scoped.some((l) => l.code === aka.code), 'Akan is spoken in Ghana');
+});
+
+t('codes and countries combine as a union, not an intersection', () => {
+  // An explicit code (Yoruba, spoken in Nigeria, not Ghana) plus a country
+  // (Ghana): both must appear, not just languages satisfying both at once.
+  const scoped = scopedLanguages(['yor'], ['GH']).map((l) => l.code);
+  assert.ok(scoped.includes('yor'), 'the explicit code should be included');
+  assert.ok(scoped.includes('aka'), 'a language of the given country should be included');
 });
 
 console.log(`\n  ${passed} language checks passed`);

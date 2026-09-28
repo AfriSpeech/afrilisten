@@ -43,6 +43,14 @@ export const config = {
   tokenExpireMinutes: clampInt('LISTEN_TOKEN_EXPIRE_MINUTES', process.env.LISTEN_TOKEN_EXPIRE_MINUTES, 1, 60, 10),
   tokenNewSessionMinutes: clampInt('LISTEN_TOKEN_NEW_SESSION_MINUTES', process.env.LISTEN_TOKEN_NEW_SESSION_MINUTES, 1, 10, 2),
 
+  // Which of the full language set a deployer actually offers. Both empty
+  // means everything -- narrowing is the opt-in, not something a deployer
+  // wanting the full set has to ask for.
+  allowedLanguages: (process.env.LISTEN_LANGUAGES || '')
+    .split(',').map((v) => v.trim()).filter(Boolean),
+  allowedCountries: (process.env.LISTEN_COUNTRIES || '')
+    .split(',').map((v) => v.trim()).filter(Boolean),
+
   // The service is public, so these are what stand between the Gemini quota
   // and anyone who finds the endpoint. Set a limit to 0 to switch that one off.
   rateEnabled: process.env.LISTEN_RATE_ENABLED !== '0',

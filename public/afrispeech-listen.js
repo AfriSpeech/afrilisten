@@ -201,6 +201,21 @@
     });
   }
 
+  /**
+   * Send a thumbs up or down for the language just heard. Best-effort: a
+   * reader who rated the audio has already heard it, so a failed submission
+   * here is not worth interrupting them over. See it at /feedback/report
+   * (with the service's key) or aggregated at whatever page the deployer
+   * builds over that endpoint.
+   */
+  function sendFeedback(languageCode, rating) {
+    return fetch(speechUrl('/feedback'), {
+      method: 'POST',
+      headers: speechHeaders({ 'content-type': 'application/json' }),
+      body: JSON.stringify({ languageCode: languageCode, rating: rating }),
+    }).then(function (response) { return response.ok; }, function () { return false; });
+  }
+
   /* --------------------------------------------------------- text, chunked */
   /* Ported from the pipeline that used to run server-side: split at most
      `limit` characters, never mid-sentence if it can be helped, so a piece
@@ -506,10 +521,25 @@
     '.afs-listen__head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}',
     '.afs-listen__lang{font-size:12px;font-weight:600;color:#2D6A4F}',
     '.afs-listen__close{border:0;background:none;color:#717E76;cursor:pointer;font-size:18px;line-height:1;padding:2px 4px}',
+    '.afs-listen__rate{display:flex;align-items:center;gap:10px;margin:2px 0 8px}',
+    '.afs-listen__rate-label{font-size:12px;color:#5F6F66}',
+    '.afs-listen__rate-btn{appearance:none;border:1px solid #D4DAD6;background:#fff;color:#5F6F66;border-radius:8px;padding:4px 8px;cursor:pointer;line-height:1;display:inline-flex}',
+    '.afs-listen__rate-btn:hover{border-color:#52B788;color:#2D6A4F}',
+    '.afs-listen__rate-btn svg{width:14px;height:14px;fill:currentColor}',
+    '.afs-listen__rate-btn[aria-pressed="true"]{border-color:#2D6A4F;background:#EAF3EE;color:#2D6A4F}',
+    '.afs-listen__rate-btn:disabled{cursor:default;opacity:.55}',
   ].join('');
 
   function icon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a3.5 3.5 0 0 0-2-3.15v6.3a3.5 3.5 0 0 0 2-3.15z"/></svg>';
+  }
+
+  /** The same thumb, flipped for "down" via a viewBox transform. */
+  function thumbIcon(down) {
+    var flip = down ? ' transform="translate(0,24) scale(1,-1)"' : '';
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"' + flip + '>' +
+      '<path d="M2 21h3V10H2v11zm19-11a2 2 0 0 0-2-2h-6.31l.95-4.57.03-.32a1.5 1.5 0 0 0-.44-1.06L12.17 1 6.59 6.59A2 2 0 0 0 6 8v11a2 2 0 0 0 2 2h9a2 2 0 0 0 1.83-1.2l3.02-7.05A2 2 0 0 0 22 12v-1.83z"/>' +
+      '</svg>';
   }
 
   function build() {
@@ -595,6 +625,7 @@
         .then(function (result) {
           var url = URL.createObjectURL(result.blob);
           var meta = result.meta;
+          var langCode = select.value;
           panel.innerHTML =
             '<div class="afs-listen__head"><span class="afs-listen__lang">' +
               escapeHtml(meta.language || 'Audio') + '</span>' +
@@ -604,6 +635,11 @@
                 meta.chars.toLocaleString() + ' of ' + meta.totalChars.toLocaleString() + ' characters.</p>'
               : '') +
             '<audio class="afs-listen__audio" controls autoplay src="' + url + '"></audio>' +
+            '<div class="afs-listen__rate">' +
+              '<span class="afs-listen__rate-label">How did that sound?</span>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="false">' + thumbIcon(false) + '</button>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="false">' + thumbIcon(true) + '</button>' +
+            '</div>' +
               // Attribution, not documentation. The old link was built from
               // ORIGIN, which is wherever this script happens to be served from, so
               // on a staging deploy it pointed at that deploy's about page. The
@@ -615,6 +651,20 @@
             panel.hidden = true;
             URL.revokeObjectURL(url);
           });
+
+          var rateButtons = panel.querySelectorAll('.afs-listen__rate-btn');
+          var rateLabel = panel.querySelector('.afs-listen__rate-label');
+          rateButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              rateButtons.forEach(function (b) {
+                b.disabled = true;
+                b.setAttribute('aria-pressed', String(b === btn));
+              });
+              rateLabel.textContent = 'Thanks for the feedback!';
+              sendFeedback(langCode, btn.getAttribute('data-rating'));
+            });
+          });
+
           reset();
         })
         .catch(function (error) {

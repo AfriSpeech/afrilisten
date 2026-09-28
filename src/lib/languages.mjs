@@ -108,9 +108,24 @@ export function defaultForLocale(locale) {
   return 'en';
 }
 
+/**
+ * Narrow the offered languages to a deployer's chosen subset: by explicit
+ * AfriSpeech code, or by country (every language attributed to that
+ * country), or both together. With neither given, everything is offered --
+ * that is the default this project is built around, so scoping down is the
+ * opt-in rather than something a deployer has to ask to undo.
+ */
+export function scopedLanguages(codes = [], countries = []) {
+  if (!codes.length && !countries.length) return OFFERED_LANGUAGES;
+  const codeSet = new Set(codes.map((c) => c.toLowerCase()));
+  const countrySet = new Set(countries.map((c) => c.toUpperCase()));
+  return OFFERED_LANGUAGES.filter((lang) => codeSet.has(lang.code)
+    || lang.countries.some((cc) => countrySet.has(cc)));
+}
+
 /** Compact payload for the widget's dropdown. */
-export function languageCatalogue() {
-  return OFFERED_LANGUAGES.map(({ code, name, google, countries }) => ({
+export function languageCatalogue(list = OFFERED_LANGUAGES) {
+  return list.map(({ code, name, google, countries }) => ({
     code, name, google, countries,
   }));
 }

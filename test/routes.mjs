@@ -8,9 +8,14 @@
  * Run with: node test/routes.mjs
  */
 import assert from 'node:assert/strict';
+import { mkdtempSync } from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 
 process.env.LISTEN_API_KEY ||= 'test-key-for-routes';
 process.env.LISTEN_RATE_ENABLED = '0';
+// Isolated from any real feedback data and from other test runs.
+process.env.LISTEN_FEEDBACK_DIR = mkdtempSync(path.join(os.tmpdir(), 'afrispeech-feedback-routes-test-'));
 // Deterministic regardless of what the ambient shell happens to export: the
 // point of the checks below is what happens when this is unset.
 delete process.env.GEMINI_API_KEY;
@@ -85,6 +90,48 @@ await check('a malformed body is tolerated: there is no page text left to valida
   });
   // Still fails, but for the same reason as above (no key), not the body.
   assert.equal(response.status, 503);
+});
+
+await check('feedback is refused without the key, same as token minting', async () => {
+  const response = await worker.fetch(new Request('https://example.test/feedback', { method: 'POST' }));
+  assert.equal(response.status, 401);
+});
+
+await check('a rating for an unknown language is refused', async () => {
+  const response = await call('/feedback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ languageCode: 'not-a-real-code', rating: 'up' }),
+  });
+  assert.equal(response.status, 400);
+});
+
+await check('a rating that is not up or down is refused', async () => {
+  const response = await call('/feedback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ languageCode: 'swh', rating: 'sideways' }),
+  });
+  assert.equal(response.status, 400);
+});
+
+await check('a valid rating is accepted and shows up in the report', async () => {
+  const response = await call('/feedback', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ languageCode: 'swh', rating: 'up' }),
+  });
+  assert.equal(response.status, 200);
+
+  const reportResponse = await call('/feedback/report');
+  assert.equal(reportResponse.status, 200);
+  const { report } = await reportResponse.json();
+  assert.ok(report.swh?.up >= 1, 'the rating just sent should be counted');
+});
+
+await check('the report is refused without the key', async () => {
+  const response = await worker.fetch(new Request('https://example.test/feedback/report'));
+  assert.equal(response.status, 401);
 });
 
 await check('an unknown route is a 404, not a crash', async () => {

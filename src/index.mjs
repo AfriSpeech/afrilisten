@@ -1,10 +1,12 @@
 /**
  * AfriSpeech Listen: token service.
  *
- * Two routes:
+ * Four routes:
  *
- *   GET  /languages   the language list, the speech settings, and the usage notice
- *   POST /token        mint a short-lived Gemini Live token
+ *   GET  /languages       the language list, the speech settings, and the usage notice
+ *   POST /token            mint a short-lived Gemini Live token
+ *   POST /feedback         a thumbs up or down on one language's audio
+ *   GET  /feedback/report  per-language rating counts, for the deployer
  *
  * This is the whole server. The page's text never reaches it: the widget
  * reads the page in the reader's own browser, chunks it there, and opens a
@@ -18,11 +20,18 @@
  * the one call that needs the real, long-lived GEMINI_API_KEY. Everything the
  * token may do — the model, the voice, that it can only produce audio — is
  * locked in at that point; see src/lib/tokens.mjs.
+ *
+ * Feedback is the one other thing that has to live server-side: a rating
+ * needs somewhere to accumulate that outlives one reader's page. Both
+ * /feedback routes sit behind the same shared key as /token, which is what
+ * "only the deployer sees it" means here — there is no second secret to
+ * provision, just the one key a deployer already holds.
  */
 import { checkAuth, corsHeaders } from './lib/auth.mjs';
 import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
 import { mintToken } from './lib/tokens.mjs';
-import { languageCatalogue } from './lib/languages.mjs';
+import { recordFeedback, feedbackReport } from './lib/feedback.mjs';
+import { languageCatalogue, findSpeechLanguage, scopedLanguages } from './lib/languages.mjs';
 import { config } from './lib/config.mjs';
 
 /* Shown to anyone integrating against this deployment.
@@ -93,7 +102,7 @@ export default {
       return Response.json(
         {
           notice: USAGE_NOTICE,
-          languages: languageCatalogue(),
+          languages: languageCatalogue(scopedLanguages(config.allowedLanguages, config.allowedCountries)),
           speech: {
             model: config.liveModel,
             maxChars: config.maxChars,
@@ -158,6 +167,37 @@ export default {
         },
         { headers: cors },
       );
+    }
+
+    if (url.pathname === '/feedback' && request.method === 'POST') {
+      // A rating costs no Gemini quota, so only the flood guard applies here,
+      // not the daily budget: that is what protects spend, and nothing is
+      // spent recording an opinion about audio already paid for.
+      const flood = await checkFlood(request);
+      if (!flood.ok) return limitResponse(flood, cors);
+
+      let body;
+      try {
+        body = JSON.parse(await request.clone().text());
+      } catch {
+        return Response.json({ error: 'invalid JSON' }, { status: 400, headers: cors });
+      }
+
+      const language = findSpeechLanguage(body?.languageCode);
+      if (!language) {
+        return Response.json({ error: 'unknown languageCode' }, { status: 400, headers: cors });
+      }
+      if (body?.rating !== 'up' && body?.rating !== 'down') {
+        return Response.json({ error: "rating must be \"up\" or \"down\"" }, { status: 400, headers: cors });
+      }
+
+      await recordFeedback({ languageCode: language.code, rating: body.rating });
+      return Response.json({ ok: true }, { headers: cors });
+    }
+
+    if (url.pathname === '/feedback/report' && request.method === 'GET') {
+      const report = await feedbackReport();
+      return Response.json({ report }, { headers: { ...cors, 'cache-control': 'no-store' } });
     }
 
     return Response.json({ error: 'not found' }, { status: 404, headers: cors });

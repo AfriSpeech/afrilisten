@@ -7,11 +7,19 @@ here is Modal-specific about the service itself; Modal just holds the
 container's port open and proxies requests to it.
 
 The service itself is now very small on purpose: it mints short-lived Gemini
-Live tokens (src/lib/tokens.mjs) and nothing else. The actual translation and
-speech happen in a Gemini Live session the browser opens for itself, directly,
-using one of those tokens -- the page's text never reaches this container at
-all. What still needs a server is minting the token, since that is the one
-step that needs the real, long-lived GEMINI_API_KEY.
+Live tokens (src/lib/tokens.mjs) and records per-language feedback
+(src/lib/feedback.mjs), nothing else. The actual translation and speech
+happen in a Gemini Live session the browser opens for itself, directly, using
+one of those tokens -- the page's text never reaches this container at all.
+What still needs a server is minting the token, since that is the one step
+that needs the real, long-lived GEMINI_API_KEY, and holding feedback
+somewhere that outlives one container.
+
+Feedback is one small file per rating on a Modal Volume, not one shared,
+appended-to file: Volumes commit in the background and use last-write-wins on
+a shared file, so two ratings written around the same moment from different
+containers could silently drop one. Two different files never conflict. See
+src/lib/feedback.mjs for the full reasoning.
 
 Deploy:  modal deploy modal_app.py
 Logs:    modal app logs afrispeech-listen
@@ -24,6 +32,11 @@ import modal
 app = modal.App("afrispeech-listen")
 
 PORT = 8787
+FEEDBACK_DIR = "/data/feedback"
+
+# create_if_missing so the very first deploy doesn't need a separate manual
+# step; the volume then persists across every redeploy after that.
+feedback_volume = modal.Volume.from_name("afrispeech-listen-feedback", create_if_missing=True)
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
@@ -58,6 +71,7 @@ image = (
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("afrispeech-listen-secrets")],
+    volumes={"/data": feedback_volume},
     timeout=1800,
     # One container kept running at all times, so a reader never pays for a
     # cold start. Affordable specifically because of how little this asks
@@ -83,5 +97,5 @@ def serve():
     subprocess.Popen(
         ["node", "server.mjs"],
         cwd="/app",
-        env={**os.environ, "PORT": str(PORT), "HOST": "0.0.0.0"},
+        env={**os.environ, "PORT": str(PORT), "HOST": "0.0.0.0", "LISTEN_FEEDBACK_DIR": FEEDBACK_DIR},
     )
