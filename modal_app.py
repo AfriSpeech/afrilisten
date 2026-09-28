@@ -59,19 +59,22 @@ image = (
     image=image,
     secrets=[modal.Secret.from_name("afrispeech-listen-secrets")],
     timeout=1800,
-    min_containers=0,
+    # One container kept running at all times, so a reader never pays for a
+    # cold start. Affordable specifically because of how little this asks
+    # for below: at Modal's published rate (2026), 0.125 core + 128 MiB
+    # continuously is about $0.0000019/sec, which works out to roughly
+    # $5/month for one container that is never actually idle-to-zero. Raise
+    # this only if traffic needs more than one warm container at once; extra
+    # containers beyond this floor still scale down via scaledown_window.
+    min_containers=1,
     # Minting a token is one small JSON round trip to Google, not compute
     # work, so this asks for Modal's floor rather than its default-if-unset
     # (which happens to be the same number, but stated explicitly here so it
     # stays true on purpose rather than by accident of what Modal defaults to).
     cpu=0.125,
     memory=128,
-    # How long an idle container is kept warm before scaling back to zero --
-    # and so how long a burst of traffic is billed for after it actually
-    # stops, since min_containers=0 means nothing runs, and nothing is
-    # billed, outside of that window. Short on purpose: a cold start here is
-    # a Node process starting, not a container image being pulled fresh, so
-    # the latency cost of scaling to zero quickly is small.
+    # How long an extra container (beyond the one min_containers keeps warm)
+    # stays up after a burst of traffic before scaling back down.
     scaledown_window=60,
 )
 @modal.concurrent(max_inputs=32)
