@@ -33,7 +33,14 @@
   if (!script || script.dataset.afrispeechReady) return;
   script.dataset.afrispeechReady = '1';
 
-  var ORIGIN = new URL(script.src).origin;
+  /* The directory this very script was loaded from, not just its origin: the
+     widget is served from a path (jsDelivr's /gh/org/repo@ref/public/...),
+     not necessarily from a site's root, and Readability has to be found
+     relative to that path rather than relative to the host. Stripping only
+     the origin, the way an earlier version of this file did, silently broke
+     the moment the widget stopped being served from a site's own root. */
+  var SCRIPT_URL = script.src;
+  var SCRIPT_DIR = SCRIPT_URL.slice(0, SCRIPT_URL.lastIndexOf('/') + 1);
   /* The synthesis service is a separate deployment: it spends a metered Gemini
      quota, so it lives apart from the site that embeds this widget. */
   // No default host. Base.astro fails the build when a page enables the widget
@@ -51,7 +58,7 @@
      actually cost is the service's rate limits, so host it somewhere that has
      them configured. */
   var SPEECH_KEY = script.dataset.key || '';
-  var READABILITY = ORIGIN + '/afrispeech/readability.min.js';
+  var READABILITY = SCRIPT_DIR + 'afrispeech/readability.min.js';
   var CATALOGUE_TTL = 24 * 60 * 60 * 1000;
   var MIN_CHARS = 180;
   var UNSUPPORTED = 'Sorry, this webpage is not supported.';
