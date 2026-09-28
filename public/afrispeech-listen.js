@@ -1,7 +1,7 @@
 /**
  * AfriSpeech Listen widget.
  *
- *   <script src="https://afrispeech.org/afrispeech-listen.js" defer></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js" defer></script>
  *
  * Optional attributes:
  *   data-lang      force a starting language (an afriso code, e.g. "swa")
