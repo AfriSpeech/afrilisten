@@ -46,12 +46,26 @@ reads the page.
 
 The script src above points at `main` in this repository, not a pinned
 release, so a page using it picks up whatever was last pushed here — there is
-nothing to bump on your side when the widget changes. jsDelivr fronts GitHub
-with a CDN cache that refreshes roughly every 12 hours, or instantly via
-[a purge request](https://www.jsdelivr.com/tools/purge) after a push, if you
-need a change live sooner than that. Pin a commit or tag instead
-(`@<sha>` in place of `@main`) if you would rather control exactly when you
-pick up a change.
+nothing to bump on your side when the widget changes. Two caches sit between a
+push and a reader actually getting it, and they behave differently:
+
+- **jsDelivr's own CDN cache** refreshes `@main` roughly every 12 hours on its
+  own, or within a couple of minutes of
+  [a purge request](https://www.jsdelivr.com/tools/purge) after a push —
+  purge both `public/afrispeech-listen.js` and
+  `public/afrispeech/readability.min.js` if you change either.
+- **The reader's own browser** then caches whatever it fetched for **7 days**
+  (`max-age=604800`, jsDelivr's header, not something this repository sets),
+  regardless of what the CDN is serving by then. A purge does not reach a
+  browser that already has a copy; only that reader's own cache expiring, or
+  them clearing it, does.
+
+So "always latest" is true for a reader's *first* fetch, not for a week after
+that. Pin a commit instead (`@<sha>` in place of `@main`) if you want a
+specific, unambiguous version — jsDelivr treats a commit-pinned URL as
+immutable and serves it consistently everywhere with no propagation delay,
+which is also the quickest way to tell whether something is a real bug or
+just an unrefreshed cache.
 
 `data-endpoint` is the token service, not an audio server, and it is yours to
 run: see [Running it yourself](#running-it-yourself). There is no default for
