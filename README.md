@@ -41,8 +41,12 @@ Put this in the `<head>` of any page with article text on it:
   defer></script>
 ```
 
-That is the whole integration. A button appears in the corner, and pressing it
-reads the page.
+That is the whole integration. A button appears in the corner, pressing it
+reads the page, and once the audio is ready a thumbs up/down sits under the
+player so a reader can say whether it sounded right. Ratings go to your own
+deployment (`POST /feedback`), and you can pull per-language stats back out
+of it at any time (`GET /feedback/report`, behind your own key) — see
+[Feedback](DEPLOY.md#feedback) in DEPLOY.md.
 
 The script src above points at `main` in this repository, not a pinned
 release, so a page using it picks up whatever was last pushed here — there is

@@ -99,6 +99,8 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | `LISTEN_RATE_PER_DAY` | `100` | 0 to 100000 | Per address, per day. 0 switches that limit off. |
 | `LISTEN_BUDGET_PER_DAY` | `5000` | 0 to 1000000 | Tokens minted across everyone, per day. The per-address limits are all bypassed by rotating address; this is the one that is not. 0 removes the cap. |
 | `LISTEN_HELD_BACK_LANGUAGES` | empty | | Comma separated codes to hide from the picker. |
+| `LISTEN_LANGUAGES` | empty (everything) | | Comma separated AfriSpeech codes to offer, e.g. `yor,swh,hau`. Combines with `LISTEN_COUNTRIES` as a union, not a filter on top of it. |
+| `LISTEN_COUNTRIES` | empty (everything) | | Comma separated ISO alpha-2 country codes; every language attributed to any of them is offered, e.g. `NG,GH,KE`. Leaving both this and `LISTEN_LANGUAGES` unset offers all 457. |
 
 Full list with defaults in [`.env.example`](.env.example).
 
@@ -125,10 +127,53 @@ The deploy prints the public URL, of the form
 `https://<your-modal-username>--afrispeech-listen-serve.modal.run`. That is
 `PUBLIC_LISTEN_ENDPOINT` for the website (see below).
 
+`modal_app.py` also creates a Modal Volume (`afrispeech-listen-feedback`) on
+first deploy, with nothing to set up by hand: that is where feedback ratings
+live, and it is what makes them survive a redeploy rather than living only on
+one container's disk. See [Feedback](#feedback) below.
+
 To change a setting, update the secret (`modal secret create ... ` again
 recreates it) or add a plain environment variable to the image in
 `modal_app.py`, then `modal deploy modal_app.py` again. `modal app logs
 afrispeech-listen` tails the running container.
+
+### Choosing which languages to offer
+
+By default this offers all 457 languages the benchmark clears (see
+README.md). To narrow that, add `LISTEN_LANGUAGES` and/or `LISTEN_COUNTRIES`
+to the secret (or as plain environment variables in `modal_app.py` if they
+are not sensitive for your deployment):
+
+```sh
+# Only Yoruba, Swahili and Hausa
+modal secret create afrispeech-listen-secrets \
+  GEMINI_API_KEY=<your key> LISTEN_API_KEY=<your key> \
+  LISTEN_ALLOWED_ORIGINS=<your origin> LISTEN_LANGUAGES=yor,swh,hau
+
+# Every language spoken in Nigeria, Ghana or Kenya
+modal secret create afrispeech-listen-secrets \
+  GEMINI_API_KEY=<your key> LISTEN_API_KEY=<your key> \
+  LISTEN_ALLOWED_ORIGINS=<your origin> LISTEN_COUNTRIES=NG,GH,KE
+```
+
+The widget needs no changes for this: it already builds its language dropdown
+from `GET /languages`, so a narrower deployment just serves a narrower list
+from the same endpoint.
+
+### Feedback
+
+`POST /feedback` (`{ "languageCode": "swh", "rating": "up" }`) and
+`GET /feedback/report` both sit behind the same key as `/token` — there is no
+second secret to provision, and "the deployer sees it" just means whoever
+holds that key:
+
+```sh
+curl -s https://<host>/feedback/report -H 'x-listen-key: <key>'
+# -> {"report":{"swh":{"up":12,"down":2,"total":14,"upRate":85.7}, ...}}
+```
+
+Build whatever page or dashboard you want over that endpoint; this repository
+does not ship one, since what a deployer wants to see is specific to them.
 
 ### What this costs
 
@@ -166,6 +211,11 @@ npm install
 npm test
 npm start               # node server.mjs, reads .env, listens on :8787
 ```
+
+Set `LISTEN_FEEDBACK_DIR` to a path on persistent storage if you want ratings
+to survive a restart; with it unset, feedback is written to a temp directory
+that disappears with the process, which is fine for trying the service out
+but not for a real deployment's dashboard.
 
 Put a reverse proxy or platform load balancer in front of it for TLS, and set
 `LISTEN_ALLOWED_ORIGINS` to your real origin before it is public.
@@ -229,11 +279,13 @@ npm run test:e2e          # real Gemini: mints a token and speaks with it
 
 | | |
 | --- | --- |
-| `src/index.mjs` | Routes: `/languages`, `/token`. |
+| `src/index.mjs` | Routes: `/languages`, `/token`, `/feedback`, `/feedback/report`. |
 | `src/lib/tokens.mjs` | Mints ephemeral Gemini Live tokens, locked to a model, voice and audio-only output. |
+| `src/lib/feedback.mjs` | Records and reports per-language thumbs up/down ratings. |
 | `src/lib/auth.mjs` | The shared key and the origin allowlist. |
 | `src/lib/ratelimit.mjs` | Per-address and shared-budget limits on minting. |
-| `src/lib/languages.mjs` | The language catalogue (457, benchmark-selected -- see README.md). |
+| `src/lib/languages.mjs` | The language catalogue (457, benchmark-selected -- see README.md) and `scopedLanguages()`, which a deployer's `LISTEN_LANGUAGES`/`LISTEN_COUNTRIES` narrows. |
+| `scripts/build-languages.mjs` | Regenerates the language table from gemini-word-mt-bench and afriso. |
 | `test/` | One file per area, each runnable on its own. |
 | `public/afrispeech-listen.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |
 | `public/afrispeech/readability.min.js` | Vendored copy of Mozilla's Readability, used by the widget to extract article text. Kept alongside the widget so the two are always the same version. |
