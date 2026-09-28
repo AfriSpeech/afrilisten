@@ -6,7 +6,7 @@
  *   GET  /languages       the language list, the speech settings, and the usage notice
  *   POST /token            mint a short-lived Gemini Live token
  *   POST /feedback         a thumbs up or down on one language's audio
- *   GET  /feedback/report  per-language rating counts, for the deployer
+ *   GET  /feedback/report  per-language rating counts, public
  *
  * This is the whole server. The page's text never reaches it: the widget
  * reads the page in the reader's own browser, chunks it there, and opens a
@@ -21,11 +21,13 @@
  * token may do — the model, the voice, that it can only produce audio — is
  * locked in at that point; see src/lib/tokens.mjs.
  *
- * Feedback is the one other thing that has to live server-side: a rating
- * needs somewhere to accumulate that outlives one reader's page. Both
- * /feedback routes sit behind the same shared key as /token, which is what
- * "only the deployer sees it" means here — there is no second secret to
- * provision, just the one key a deployer already holds.
+ * Feedback is deliberately not behind the shared key, unlike /token: every
+ * widget everywhere reports to one deployment of this service (see
+ * FEEDBACK_ENDPOINT in the widget), because a rating is a signal about how
+ * well Gemini translates into a language in general, not something specific
+ * to one deployer's audience. Pooling it is the point, and "public" means
+ * exactly that: anyone can read /feedback/report, not just whoever is
+ * running this instance.
  */
 import { checkAuth, corsHeaders } from './lib/auth.mjs';
 import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
@@ -113,6 +115,39 @@ export default {
       );
     }
 
+    /* Public, deliberately, and so checked before the key gate below: see the
+       file header on why feedback is pooled across every deployment rather
+       than gated per-deployer the way /token is. */
+    if (url.pathname === '/feedback' && request.method === 'POST') {
+      // No Gemini quota is spent recording an opinion about audio already
+      // paid for, so only the flood guard applies, not a budget.
+      const flood = await checkFlood(request);
+      if (!flood.ok) return limitResponse(flood, cors);
+
+      let body;
+      try {
+        body = JSON.parse(await request.clone().text());
+      } catch {
+        return Response.json({ error: 'invalid JSON' }, { status: 400, headers: cors });
+      }
+
+      const language = findSpeechLanguage(body?.languageCode);
+      if (!language) {
+        return Response.json({ error: 'unknown languageCode' }, { status: 400, headers: cors });
+      }
+      if (body?.rating !== 'up' && body?.rating !== 'down') {
+        return Response.json({ error: "rating must be \"up\" or \"down\"" }, { status: 400, headers: cors });
+      }
+
+      await recordFeedback({ languageCode: language.code, rating: body.rating });
+      return Response.json({ ok: true }, { headers: cors });
+    }
+
+    if (url.pathname === '/feedback/report' && request.method === 'GET') {
+      const report = await feedbackReport();
+      return Response.json({ report }, { headers: { ...cors, 'cache-control': 'no-store' } });
+    }
+
     // Cheapest gate first: reject before doing any work.
     const auth = checkAuth(request);
     if (!auth.ok) {
@@ -167,37 +202,6 @@ export default {
         },
         { headers: cors },
       );
-    }
-
-    if (url.pathname === '/feedback' && request.method === 'POST') {
-      // A rating costs no Gemini quota, so only the flood guard applies here,
-      // not the daily budget: that is what protects spend, and nothing is
-      // spent recording an opinion about audio already paid for.
-      const flood = await checkFlood(request);
-      if (!flood.ok) return limitResponse(flood, cors);
-
-      let body;
-      try {
-        body = JSON.parse(await request.clone().text());
-      } catch {
-        return Response.json({ error: 'invalid JSON' }, { status: 400, headers: cors });
-      }
-
-      const language = findSpeechLanguage(body?.languageCode);
-      if (!language) {
-        return Response.json({ error: 'unknown languageCode' }, { status: 400, headers: cors });
-      }
-      if (body?.rating !== 'up' && body?.rating !== 'down') {
-        return Response.json({ error: "rating must be \"up\" or \"down\"" }, { status: 400, headers: cors });
-      }
-
-      await recordFeedback({ languageCode: language.code, rating: body.rating });
-      return Response.json({ ok: true }, { headers: cors });
-    }
-
-    if (url.pathname === '/feedback/report' && request.method === 'GET') {
-      const report = await feedbackReport();
-      return Response.json({ report }, { headers: { ...cors, 'cache-control': 'no-store' } });
     }
 
     return Response.json({ error: 'not found' }, { status: 404, headers: cors });

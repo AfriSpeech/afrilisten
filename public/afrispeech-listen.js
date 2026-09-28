@@ -59,7 +59,22 @@
      them configured. */
   var SPEECH_KEY = script.dataset.key || '';
   var READABILITY = SCRIPT_DIR + 'afrispeech/readability.min.js';
-  var CATALOGUE_TTL = 24 * 60 * 60 * 1000;
+  // An hour, not a day: long enough that picking a language does not cost a
+  // request every time, short enough that a change to the list (a benchmark
+  // rerun, a deployer's LISTEN_LANGUAGES) reaches an open tab on its own
+  // rather than needing a cleared cache. The key carries a version so a
+  // change to what gets cached here invalidates what is already stored,
+  // rather than a stale shape lingering until its TTL happens to expire.
+  var CATALOGUE_CACHE_KEY = 'afrispeech.languages.v2';
+  var CATALOGUE_TTL = 60 * 60 * 1000;
+  // Feedback is a shared, cross-deployment signal -- every widget everywhere
+  // reports to the one place ratings accumulate, rather than each deployer
+  // running their own separate pool that starts back at zero. This is
+  // deliberately not the same as SPEECH: a deployer's own token service
+  // still does the translating and speaking, on their own key and their own
+  // quota, but a rating is about how well Gemini translates into a
+  // language in general, which is worth pooling rather than splitting up.
+  var FEEDBACK_ENDPOINT = 'https://michsethowusuwfp--afrispeech-listen-serve.modal.run';
   var MIN_CHARS = 180;
   var UNSUPPORTED = 'Sorry, this webpage is not supported.';
   // A pinned version of the browser build of @google/genai, bundled by esm.sh
@@ -112,7 +127,7 @@
 
   function readCache() {
     try {
-      var raw = localStorage.getItem('afrispeech.languages');
+      var raw = localStorage.getItem(CATALOGUE_CACHE_KEY);
       if (!raw) return null;
       var box = JSON.parse(raw);
       if (!box || !box.list || !box.list.length || !box.speech || !box.speech.model) return null;
@@ -123,7 +138,7 @@
 
   function writeCache(list, speech) {
     try {
-      localStorage.setItem('afrispeech.languages', JSON.stringify({ at: Date.now(), list: list, speech: speech }));
+      localStorage.setItem(CATALOGUE_CACHE_KEY, JSON.stringify({ at: Date.now(), list: list, speech: speech }));
     } catch (e) { /* private mode; we just refetch next time */ }
   }
 
@@ -209,9 +224,13 @@
    * builds over that endpoint.
    */
   function sendFeedback(languageCode, rating) {
-    return fetch(speechUrl('/feedback'), {
+    // Not speechUrl(): this always goes to the shared FEEDBACK_ENDPOINT, not
+    // whatever token service this deployment configured, and it is public --
+    // no x-listen-key, because there is no per-deployer feedback service to
+    // gate access to any more.
+    return fetch(FEEDBACK_ENDPOINT + '/feedback', {
       method: 'POST',
-      headers: speechHeaders({ 'content-type': 'application/json' }),
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ languageCode: languageCode, rating: rating }),
     }).then(function (response) { return response.ok; }, function () { return false; });
   }
