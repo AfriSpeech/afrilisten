@@ -562,9 +562,16 @@
 
     function start() {
       if (!select.value) {
-        panel.hidden = false;
-        panel.innerHTML = '<p class="afs-listen__note">Choose a language to read this ' +
-          'page in, then press Listen again.</p>';
+        // Open the picker itself rather than telling the reader to: one press
+        // to see the choice, not one press to be told there is one.
+        // showPicker() has to run synchronously off the gesture that got us
+        // here, or the browser refuses it as not user-initiated, so nothing
+        // async happens before this. Not every browser has it yet (Safari
+        // notably does not, as of this writing), so focus is the fallback:
+        // it still opens the native dropdown on the platforms this widget
+        // has to run in that on, and otherwise just lets the reader hit
+        // Space or Down to open it themselves without hunting for the control.
+        try { select.showPicker(); } catch (e) { select.focus(); }
         return;
       }
       button.disabled = true;
