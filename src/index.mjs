@@ -1,0 +1,165 @@
+/**
+ * AfriSpeech Listen: token service.
+ *
+ * Two routes:
+ *
+ *   GET  /languages   the language list, the speech settings, and the usage notice
+ *   POST /token        mint a short-lived Gemini Live token
+ *
+ * This is the whole server. The page's text never reaches it: the widget
+ * reads the page in the reader's own browser, chunks it there, and opens a
+ * Gemini Live session directly from the browser for each piece, using a token
+ * minted here. That is only possible because Gemini Live supports ephemeral,
+ * scoped tokens for exactly this: a browser can hold a Live session open
+ * itself, so the audio is never proxied through a server that would otherwise
+ * have to hold every reader's connection open for the length of a synthesis.
+ *
+ * What still has to happen server-side is minting the token, because that is
+ * the one call that needs the real, long-lived GEMINI_API_KEY. Everything the
+ * token may do — the model, the voice, that it can only produce audio — is
+ * locked in at that point; see src/lib/tokens.mjs.
+ */
+import { checkAuth, corsHeaders } from './lib/auth.mjs';
+import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
+import { mintToken } from './lib/tokens.mjs';
+import { languageCatalogue } from './lib/languages.mjs';
+import { config } from './lib/config.mjs';
+
+/* Shown to anyone integrating against this deployment.
+ *
+ * Minting a token is done with a key this repository pays for, and that key
+ * has a budget. It is shared, so it can be exhausted by other callers, and
+ * there is no way to bill the person reading the page. That makes this a
+ * place to develop and demonstrate the widget, not something to put in front
+ * of readers who expect it to be there next minute. Saying so in the first
+ * response an integrator receives is cheaper than letting them find out in
+ * production. */
+const USAGE_NOTICE = {
+  status: 'self-hosted',
+  message:
+    'This endpoint is not a shared public service. It belongs to whoever deployed this '
+    + 'code, runs on their own Gemini API key, and spends their own quota, so what it can '
+    + 'serve is bounded by the plan they chose rather than by this project. It never sees '
+    + 'the text of the page being read: it only mints short-lived tokens, and the audio is '
+    + 'produced by a Gemini Live session the browser opens for itself.',
+  production:
+    'Deploy your own instance with your own paid Gemini API key, as DEPLOY.md sets out, and '
+    + 'point the widget at it. Keep the paid key server-side: a key placed in browser code is '
+    + 'readable by anyone who loads the page, and they can spend your quota at your expense.',
+};
+
+/* What the reader is told when a token cannot be minted, which is not what the
+ * log says: the raw error is Google's, not something a reader can act on. */
+export function describe(error) {
+  const message = String(error?.message ?? error ?? '');
+  if (/quota|rate limit|RESOURCE_EXHAUSTED|\b429\b|\b503\b|UNAVAILABLE|overloaded|capacity/i.test(message)) {
+    return 'The speech service is busy just now. Please try again in a moment.';
+  }
+  return 'The speech service could not be reached. Please try again in a moment.';
+}
+
+/** Render a refusal from either limit, the same way for both. */
+function limitResponse(limit, cors) {
+  return Response.json(
+    { error: limit.error },
+    {
+      status: limit.status,
+      headers: {
+        ...cors,
+        'retry-after': String(limit.retryAfter ?? 60),
+        'x-listen-limit': limit.scope ?? '',
+      },
+    },
+  );
+}
+
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const cors = corsHeaders(request);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    /* The list of languages, and the settings the widget needs to chunk a page
+       itself: how much to read and how big a piece Gemini Live will hold in
+       one turn. Free, and not behind the key, because a client needs it before
+       it has anything else. Guessing a language code is worse than it sounds:
+       an unrecognised one is not refused, it falls back to English, so a
+       reader who asked for one language is quietly given another. The origin
+       allowlist still applies. */
+    if (url.pathname === '/languages' && request.method === 'GET') {
+      return Response.json(
+        {
+          notice: USAGE_NOTICE,
+          languages: languageCatalogue(),
+          speech: {
+            model: config.liveModel,
+            maxChars: config.maxChars,
+            chunkChars: config.chunkChars,
+          },
+        },
+        { headers: { ...cors, 'cache-control': 'public, max-age=3600' } },
+      );
+    }
+
+    // Cheapest gate first: reject before doing any work.
+    const auth = checkAuth(request);
+    if (!auth.ok) {
+      return Response.json({ error: auth.error }, { status: auth.status, headers: cors });
+    }
+
+    if (url.pathname === '/token' && request.method === 'POST') {
+      /* What is being protected is the Gemini quota, and it is spent the
+         moment a token is minted, so this is the only route that is limited. */
+      const flood = await checkFlood(request);
+      if (!flood.ok) return limitResponse(flood, cors);
+
+      // There is nothing to validate here beyond a hint at how many pieces
+      // the browser is about to speak, used only to size the token's use
+      // count, so a body that is not JSON is treated as no hint rather than
+      // refused: unlike /speak in an earlier version of this service, there
+      // is no page text for a malformed body to be missing.
+      let body = {};
+      if ((request.headers.get('content-type') || '').includes('application/json')) {
+        const raw = await request.clone().text();
+        if (raw.length <= 2000) {
+          try { body = JSON.parse(raw) ?? {}; } catch { body = {}; }
+        }
+      }
+      if (typeof body !== 'object' || Array.isArray(body) || body === null) body = {};
+
+      const budget = await claimBudget(request);
+      if (!budget.ok) return limitResponse(budget, cors);
+
+      const pieces = Math.max(1, Math.min(40, Number.parseInt(body.pieces, 10) || 4));
+      const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
+
+      let minted;
+      try {
+        minted = await mintToken({
+          model: config.liveModel,
+          voice: config.ttsVoice,
+          uses,
+          expireMinutes: config.tokenExpireMinutes,
+          newSessionMinutes: config.tokenNewSessionMinutes,
+        });
+      } catch (error) {
+        return Response.json({ error: describe(error) }, { status: 503, headers: cors });
+      }
+
+      return Response.json(
+        {
+          token: minted.token,
+          model: config.liveModel,
+          expireTime: minted.expireTime,
+          uses,
+        },
+        { headers: cors },
+      );
+    }
+
+    return Response.json({ error: 'not found' }, { status: 404, headers: cors });
+  },
+};

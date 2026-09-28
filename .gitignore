@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+
+# Output captured from a run that was backgrounded.
+*.out
+
+# Python bytecode cache, from `modal deploy` importing modal_app.py.
+__pycache__/
+*.pyc
