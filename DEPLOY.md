@@ -130,11 +130,27 @@ recreates it) or add a plain environment variable to the image in
 `modal_app.py`, then `modal deploy modal_app.py` again. `modal app logs
 afrispeech-listen` tails the running container.
 
-Cold starts are the one thing worth knowing about a scale-to-zero deployment:
-`min_containers=0` means the first request after a quiet period pays for a
-container to start (roughly a second or two for this image). Set
-`min_containers=1` in `modal_app.py` if that is worse than the idle cost of
-keeping one warm.
+### What this costs
+
+Free, for a basic site, on both ends:
+
+- **Modal.** `modal_app.py` asks for the smallest footprint Modal allows
+  (0.125 CPU core, 128 MiB memory) and keeps exactly one container warm at
+  all times (`min_containers=1`), so a reader never pays a cold-start delay.
+  At Modal's published per-second rate, that works out to roughly **$5 a
+  month** — comfortably inside the **$30/month free compute** Modal's
+  Starter plan includes, so this runs at $0 out of pocket unless traffic
+  grows enough to need more than one warm container.
+- **Gemini.** No billing account is required — the Live API has a free tier,
+  so a plain [AI Studio](https://aistudio.google.com/apikey) key works. What
+  it does not have is a generous rate limit (see [Whose key is
+  it](#whose-key-is-it)), which is exactly what `LISTEN_RATE_*` and
+  `LISTEN_BUDGET_PER_DAY` exist to stay inside of.
+
+That is two free tiers stacked, not one: Modal's covers the container,
+Gemini's covers the tokens it mints. Set `min_containers=0` instead if you
+would rather trade the occasional reader-facing cold start (roughly a second
+or two for this image) for not running a container continuously at all.
 
 ### Running it anywhere else
 

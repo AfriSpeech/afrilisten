@@ -245,6 +245,11 @@ That means this is metered the way Live is: on one key, 8 concurrent sessions
 were all served and 16 had 11 refused for quota. See [DEPLOY.md](DEPLOY.md) for
 the full list of configuration and a verified end-to-end check.
 
+For a basic site, running your own costs **$0**: the deployment documented
+there fits inside Modal's free monthly compute credit, and Gemini's Live API
+free tier needs no billing account. See [What this
+costs](DEPLOY.md#what-this-costs) for the numbers.
+
 ### The key stays on your server
 
 Get a key from [Google AI Studio](https://aistudio.google.com/apikey). No
