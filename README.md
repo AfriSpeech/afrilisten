@@ -2,9 +2,11 @@
 
 A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **51 African languages**.
 
-**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the first 100 characters via Google Translate (using a semantic Thai pivot), universalises the text via [africa-g2p](https://github.com/AfriSpeech/africa-g2p) for clean phonetics, and generates native-sounding speech via Gemini Live. It works just as seamlessly on sites already written in an African language.
+**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the text via Google Translate (using a semantic Thai pivot), chunks it along sentence boundaries, and streams native-sounding speech in real time via Gemini Live. It works just as seamlessly on sites already written in an African language.
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
+
+> **Live Demo:** See AfriListen in action on the [AfriSpeech website](https://afrispeech.org/about/) — look for the floating **Listen** button in the bottom corner.
 
 ---
 
@@ -41,9 +43,9 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 ## Features
 
 - **51 Major African Languages**: Broad coverage including Swahili, Yoruba, Hausa, Amharic, Zulu, Igbo, Akan/Twi, Oromo, Somali, Wolof, Kinyarwanda, Xhosa, Shona, and more.
-- **High-Quality Translation**: Translated via Google Translate with a Thai pivot (`source -> th -> target`) and universalised through [africa-g2p](https://github.com/AfriSpeech/africa-g2p) before audio generation.
-- **Snappy 100-Char Audio**: Narrates the article's opening 100 characters in 1-2 seconds with zero chunking or stitching lag.
-- **Direct Browser Streaming**: Gemini Live speaks the universalised text directly to the reader's browser — zero audio proxying through your server.
+- **High-Quality Translation**: Translated via Google Translate with a semantic Thai pivot (`source -> th -> target`) before audio generation.
+- **Real-Time Streaming Playback**: Streams audio as packets arrive over WebSocket — the reader starts hearing speech in ~300ms without waiting for the full article to finish.
+- **Direct Browser Streaming**: Gemini Live speaks directly to the reader's browser — zero audio proxying through your server.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
 - **Reader Feedback**: Built-in thumbs up/down rating buttons let readers rate translation and speech quality, helping improve African language support.
 - **Mobile & Desktop Ready**: Responsive floating player with language search, audio playback controls, and customizable positioning.
@@ -54,7 +56,7 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 ## How It Reads Your Website
 
 - **Websites in High-Resource Languages (Primary Use Case):** Your website does not need to be written in an African language! Most web content across Africa and worldwide is published in high-resource languages (such as English, French, Arabic, Portuguese, etc.). When a reader clicks Listen on your page, AfriListen translates each section on the fly and speaks it aloud in their selected African mother tongue.
-- **Websites Already in an African Language:** If your website is already written in one of the 69 supported African languages (e.g. an article published in Swahili, Yoruba, or Amharic), AfriListen reads the text directly aloud in that language, or can translate it into any of the other 68 African languages if the reader prefers.
+- **Websites Already in an African Language:** If your website is already written in one of the 51 supported African languages (e.g. an article published in Swahili, Yoruba, or Amharic), AfriListen reads the text directly aloud in that language, or can translate it into any of the other 50 African languages if the reader prefers.
 
 ---
 
