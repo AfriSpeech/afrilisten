@@ -18,7 +18,7 @@ export const config = {
   // mints, so a browser holding a token cannot repoint it at a different,
   // unaudited model.
   liveModel: process.env.GEMINI_LIVE_MODEL || 'gemini-3.1-flash-live-preview',
-  ttsVoice: process.env.GEMINI_TTS_VOICE || 'Zephyr',
+  ttsVoice: process.env.GEMINI_TTS_VOICE || 'Charon',
 
   // Handed to the browser over /languages, so the widget knows how much of a
   // page to read and how to split it for one Gemini Live turn without either

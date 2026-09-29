@@ -32,7 +32,7 @@ await t('the model, voice and response modality are locked into the token', asyn
   // whatever a stub response happens to contain.
   const client = stubClient({ name: 'auth_tokens/abc' });
   const result = await mintToken({
-    model: 'gemini-3.1-flash-live-preview', voice: 'Zephyr',
+    model: 'gemini-3.1-flash-live-preview', voice: 'Charon',
     uses: 6, expireMinutes: 10, newSessionMinutes: 2, client,
   });
   assert.equal(result.token, 'auth_tokens/abc');
@@ -44,7 +44,7 @@ await t('the model, voice and response modality are locked into the token', asyn
   assert.deepEqual(sent.liveConnectConstraints.config.responseModalities, ['AUDIO']);
   assert.equal(
     sent.liveConnectConstraints.config.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName,
-    'Zephyr',
+    'Charon',
   );
   assert.match(sent.liveConnectConstraints.config.systemInstruction, /translate/i,
     'the system instruction must tell Gemini to translate, not just repeat what it is sent');

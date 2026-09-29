@@ -98,7 +98,7 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | Variable | Default | Range | What it does |
 | --- | --- | --- | --- |
 | `GEMINI_LIVE_MODEL` | `gemini-3.1-flash-live-preview` | | The one model. Locked into every token minted, and returned to the widget over `/languages` so it can connect with the same id. |
-| `GEMINI_TTS_VOICE` | `Zephyr` | | The voice. Also locked into every token. |
+| `GEMINI_TTS_VOICE` | `Charon` | | The voice. Also locked into every token. |
 | `LISTEN_MAX_CHARS` | `2500` | 200 to 5000 | Ceiling on how much of a page the widget reads. Sent to the browser over `/languages`; enforced there, since the service never sees the text to enforce it itself. |
 | `LISTEN_TTS_CHUNK_CHARS` | `250` | 40 to 250 | How big a piece the widget splits a page into. Gemini Live will not reliably hold a turn open past this. |
 | `LISTEN_TOKEN_USES_PER_PIECE` | `2` | 1 to 4 | How many Live sessions one piece is budgeted, headroom for one retry included. |
@@ -362,7 +362,7 @@ Response:
 {
   "token": "auth_tokens/...",
   "model": "gemini-3.1-flash-live-preview",
-  "voice": "Zephyr",
+  "voice": "Charon",
   "expireTime": "...",
   "text": "chuo kikuu kilitangaza mpango mpya...",
   "originalTranslation": "Chuo kikuu kilitangaza mpango mpya...",
