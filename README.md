@@ -1,7 +1,5 @@
 # AfriSpeech Listen
 
-Turn any web page into audio, in the reader's own language.
-
 Drop one script tag on your site and readers get a **Listen** button that reads
 the page they are on, translated into any of 457 African languages and spoken
 aloud. No build step, no framework, no SDK to install.
