@@ -603,7 +603,11 @@
     '.afs-listen__panel{margin-top:10px;background:#fff;border:1px solid #D4DAD6;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:14px;width:300px;max-width:calc(100vw - 40px)}',
     '.afs-listen__panel[hidden]{display:none}',
     '.afs-listen__audio{width:100%;margin:2px 0 8px}',
-    '.afs-listen__status{display:flex;align-items:center;gap:10px;padding:8px 0;margin:2px 0 6px}',
+    '.afs-listen__status{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;margin:2px 0 6px}',
+    '.afs-listen__status-main{display:flex;align-items:center;gap:8px;min-width:0}',
+    '.afs-listen__status-rate{display:flex;align-items:center;gap:6px;flex-shrink:0}',
+    '.afs-listen__rate-btn--mini{padding:3px 6px;border-radius:6px;line-height:1}',
+    '.afs-listen__rate-btn--mini svg{width:12px;height:12px}',
     '.afs-listen__status-text{font-size:13px;color:#2D6A4F;font-weight:600}',
     '.afs-listen__pulse{width:8px;height:8px;border-radius:50%;background:#52B788;animation:afs-pulse 1.2s ease-in-out infinite;flex-shrink:0}',
     '@keyframes afs-pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}',
@@ -734,6 +738,7 @@
       } catch (e) {}
 
       var currentSession = { stop: function () {} };
+      var ratedRating = null;
 
       function stopAndClose() {
         if (currentSession && currentSession.stop) currentSession.stop();
@@ -745,21 +750,48 @@
       }
 
       function setStatus(text, showPulse, isPlaying) {
+        var rateHtml = '';
+        if (isPlaying) {
+          rateHtml =
+            '<div class="afs-listen__status-rate">' +
+              '<button class="afs-listen__rate-btn afs-listen__rate-btn--mini" type="button" data-rating="up" aria-label="Good" aria-pressed="' + String(ratedRating === 'up') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(false) + '</button>' +
+              '<button class="afs-listen__rate-btn afs-listen__rate-btn--mini" type="button" data-rating="down" aria-label="Not good" aria-pressed="' + String(ratedRating === 'down') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(true) + '</button>' +
+            '</div>';
+        }
+
         panel.innerHTML =
           '<div class="afs-listen__head">' +
             '<span class="afs-listen__lang">' + escapeHtml(languageName) + '</span>' +
             '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button>' +
           '</div>' +
           '<div class="afs-listen__status">' +
-            (isPlaying
-              ? '<div class="afs-listen__wave"><span></span><span></span><span></span><span></span><span></span></div>'
-              : (showPulse ? '<span class="afs-listen__pulse"></span>' : '')) +
-            '<span class="afs-listen__status-text">' + escapeHtml(text) + '</span>' +
+            '<div class="afs-listen__status-main">' +
+              (isPlaying
+                ? '<div class="afs-listen__wave"><span></span><span></span><span></span><span></span><span></span></div>'
+                : (showPulse ? '<span class="afs-listen__pulse"></span>' : '')) +
+              '<span class="afs-listen__status-text">' + escapeHtml(text) + '</span>' +
+            '</div>' +
+            rateHtml +
           '</div>' +
           '<p class="afs-listen__note" style="margin-top:6px">Powered by ' +
             '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
+
         var closeBtn = panel.querySelector('.afs-listen__close');
         if (closeBtn) closeBtn.addEventListener('click', stopAndClose);
+
+        if (isPlaying && !ratedRating) {
+          var miniButtons = panel.querySelectorAll('.afs-listen__status-rate .afs-listen__rate-btn');
+          miniButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              ratedRating = btn.getAttribute('data-rating');
+              miniButtons.forEach(function (b) {
+                b.disabled = true;
+                b.setAttribute('aria-pressed', String(b === btn));
+              });
+              sendFeedback(select.value, ratedRating, chosenVoice);
+            });
+          });
+        }
       }
 
       button.disabled = true;
@@ -805,9 +837,9 @@
               '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button></div>' +
             '<audio class="afs-listen__audio" controls' + autoplayAttr + ' src="' + url + '"></audio>' +
             '<div class="afs-listen__rate">' +
-              '<span class="afs-listen__rate-label">How did that sound?</span>' +
-              '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="false">' + thumbIcon(false) + '</button>' +
-              '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="false">' + thumbIcon(true) + '</button>' +
+              '<span class="afs-listen__rate-label">' + (ratedRating ? 'Thanks for the feedback!' : 'How did that sound?') + '</span>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="' + String(ratedRating === 'up') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(false) + '</button>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="' + String(ratedRating === 'down') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(true) + '</button>' +
             '</div>' +
             '<p class="afs-listen__note">Powered by ' +
               '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
@@ -815,18 +847,21 @@
           var close = panel.querySelector('.afs-listen__close');
           close.addEventListener('click', stopAndClose);
 
-          var rateButtons = panel.querySelectorAll('.afs-listen__rate-btn');
-          var rateLabel = panel.querySelector('.afs-listen__rate-label');
-          rateButtons.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              rateButtons.forEach(function (b) {
-                b.disabled = true;
-                b.setAttribute('aria-pressed', String(b === btn));
+          if (!ratedRating) {
+            var rateButtons = panel.querySelectorAll('.afs-listen__rate .afs-listen__rate-btn');
+            var rateLabel = panel.querySelector('.afs-listen__rate-label');
+            rateButtons.forEach(function (btn) {
+              btn.addEventListener('click', function () {
+                ratedRating = btn.getAttribute('data-rating');
+                rateButtons.forEach(function (b) {
+                  b.disabled = true;
+                  b.setAttribute('aria-pressed', String(b === btn));
+                });
+                rateLabel.textContent = 'Thanks for the feedback!';
+                sendFeedback(langCode, ratedRating, chosenVoice);
               });
-              rateLabel.textContent = 'Thanks for the feedback!';
-              sendFeedback(langCode, btn.getAttribute('data-rating'), chosenVoice);
             });
-          });
+          }
 
           reset();
         })
