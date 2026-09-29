@@ -124,8 +124,10 @@ console.log(`afriso: ${afriso.size} languages loaded.`);
 const table = new Map();
 for (const lang of GOOGLE_TRANSLATE_AFRICAN) {
   const info = afriso.get(lang.code);
+  const rawName = (info && info.name) || lang.name;
+  const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
   table.set(lang.code, {
-    name: (info && info.name) || lang.name,
+    name: cleanName,
     google: lang.google,
     countries: (info && info.countries && info.countries.length) ? info.countries : [],
   });

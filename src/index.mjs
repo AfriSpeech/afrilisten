@@ -35,6 +35,7 @@ import { mintToken } from './lib/tokens.mjs';
 import { recordFeedback, feedbackReport, renderFeedbackPage } from './lib/feedback.mjs';
 import { languageCatalogue, findSpeechLanguage, scopedLanguages, OFFERED_LANGUAGES } from './lib/languages.mjs';
 import { translateViaThai, clipToLimit } from './lib/translate.mjs';
+import { chunkBySentences } from './lib/chunk.mjs';
 import { universalize } from './lib/universalize.mjs';
 import { config } from './lib/config.mjs';
 
@@ -228,24 +229,24 @@ export default {
         sourceGoogle = sourceMatch ? sourceMatch.google : body.source.trim().toLowerCase().split('-')[0];
       }
 
-      let spokenText = '';
       let originalTranslation = '';
+      let chunks = [];
 
       if (body.text && typeof body.text === 'string' && body.text.trim()) {
-        const clipped = clipToLimit(body.text, 100);
+        const clipped = clipToLimit(body.text, config.maxChars || 1000);
         try {
           // If source matches target or is detected as target, translateViaThai skips the Thai hop
           const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle);
           originalTranslation = trans.text || clipped;
-          // Always universalise before sending to Gemini Live
-          spokenText = await universalize(originalTranslation, targetLang?.code || 'swh');
         } catch {
           originalTranslation = clipped;
-          spokenText = await universalize(clipped, targetLang?.code || 'swh');
         }
+        // Chunk strictly along sentence boundaries so each piece fits a Gemini Live turn cleanly
+        chunks = chunkBySentences(originalTranslation, config.chunkChars || 200);
       }
+      if (!chunks.length && originalTranslation) chunks = [originalTranslation];
 
-      const pieces = Math.max(1, Math.min(40, Number.parseInt(body.pieces, 10) || 1));
+      const pieces = Math.max(1, Math.min(40, chunks.length || Number.parseInt(body.pieces, 10) || 1));
       const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
 
       let minted;
@@ -268,8 +269,8 @@ export default {
           voice: config.ttsVoice,
           expireTime: minted.expireTime,
           uses,
-          text: spokenText,
-          originalTranslation,
+          chunks,
+          text: originalTranslation,
           language: targetLang?.name || 'Swahili',
           languageCode: targetLang?.code || 'swh',
         },

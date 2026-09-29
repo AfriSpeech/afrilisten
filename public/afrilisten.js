@@ -382,30 +382,31 @@
   }
 
   /**
-   * Speak one piece over a Gemini Live session opened with the ephemeral
-   * token, and resolve with the raw PCM Gemini hands back.
-   *
-   * `onopen` can fire before `connect()` resolves, so the session object is
-   * not always assigned when it does; the text waits for both.
+   * Speak one text chunk over a Gemini Live session, streaming audio packets
+   * into AudioContext as they arrive so the reader hears speech immediately.
    */
-  function speakPiece(genai, tokenInfo, instruction, text) {
+  function speakChunkStreaming(genai, tokenInfo, promptText, onPacket, onFirstAudio) {
     return new Promise(function (resolve, reject) {
       var chunks = [];
       var settled = false;
       var session = null;
       var socketOpen = false;
-      var timer = setTimeout(function () { settle(new Error('Timed out waiting for audio.')); }, PIECE_TIMEOUT_MS);
+      var firstFired = false;
+      var timer = setTimeout(function () {
+        settle(new Error('Timed out waiting for speech.'));
+      }, PIECE_TIMEOUT_MS);
 
       function settle(err, value) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        try { if (session) session.close(); } catch (e) { /* already gone */ }
+        try { if (session) session.close(); } catch (e) {}
         if (err) reject(err); else resolve(value);
       }
+
       function flush() {
         if (!socketOpen || !session) return;
-        session.sendRealtimeInput({ text: instruction ? instruction + '\n\n' + text : text });
+        session.sendRealtimeInput({ text: promptText });
       }
 
       var ai = new genai.GoogleGenAI({ apiKey: tokenInfo.token, httpOptions: { apiVersion: 'v1alpha' } });
@@ -413,24 +414,45 @@
         model: tokenInfo.model,
         config: { responseModalities: [genai.Modality.AUDIO] },
         callbacks: {
-          onopen: function () { socketOpen = true; flush(); },
+          onopen: function () {
+            socketOpen = true;
+            flush();
+          },
           onmessage: function (message) {
             var content = message && message.serverContent;
             if (!content) return;
             var parts = (content.modelTurn && content.modelTurn.parts) || [];
             for (var i = 0; i < parts.length; i += 1) {
               var data = parts[i] && parts[i].inlineData && parts[i].inlineData.data;
-              if (data) chunks.push(base64ToBytes(data));
+              if (data) {
+                var pcmBytes = base64ToBytes(data);
+                chunks.push(pcmBytes);
+                if (!firstFired) {
+                  firstFired = true;
+                  if (onFirstAudio) onFirstAudio();
+                }
+                if (onPacket) onPacket(pcmBytes);
+              }
             }
-            if (content.turnComplete) settle(null, concatBytes(chunks));
+            if (content.turnComplete) {
+              settle(null, concatBytes(chunks));
+            }
           },
-          onerror: function (event) { settle(new Error('live: ' + ((event && event.message) || 'socket error'))); },
+          onerror: function (event) {
+            settle(new Error('live: ' + ((event && event.message) || 'socket error')));
+          },
           onclose: function (event) {
-            if (!settled) settle(new Error('live: closed before the turn completed' + (event && event.code ? ' (code ' + event.code + ')' : '')));
+            if (!settled) {
+              settle(new Error('live: closed before turn completed' + (event && event.code ? ' (code ' + event.code + ')' : '')));
+            }
           },
         },
-      }).then(function (opened) { session = opened; flush(); })
-        .catch(function (err) { settle(new Error('live: connect failed: ' + err.message)); });
+      }).then(function (opened) {
+        session = opened;
+        flush();
+      }).catch(function (err) {
+        settle(new Error('live: connect failed: ' + err.message));
+      });
     });
   }
 
@@ -448,36 +470,77 @@
   }
 
   /**
-   * Speak `text` in `lang`: sends the first 100 characters to the server to translate
-   * via Thai pivot and universalise, then speaks the translated text over a single Gemini Live turn.
+   * Speak `text` in `lang`: translates the article on the server in one shot,
+   * receives sentence-bounded chunks, and streams audio chunk-by-chunk in real time.
    */
-  function buildAudio(text, lang, languageName, source) {
-    var clip = clipToLimit(text, 100);
-
-    return Promise.all([fetchToken(clip, lang, source), loadGenai()]).then(function (results) {
+  function buildAudio(text, lang, languageName, source, audioCtx, onStatus) {
+    return Promise.all([fetchToken(text, lang, source), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
-      var textToSpeak = tokenInfo.text || clip;
+      var chunks = tokenInfo.chunks && tokenInfo.chunks.length ? tokenInfo.chunks : [tokenInfo.text || text];
       var langName = tokenInfo.language || languageName || 'the target language';
 
-      var instruction = 'You are a text-to-speech engine. Read the following text aloud, exactly as written, in ' +
-        langName + '. Speak clearly. Do not translate, do not summarise, do not answer, and do not add any preamble.';
+      var allPcmPieces = [];
+      var nextPlayTime = 0;
+      var activeSources = [];
 
-      return withRetry(function () {
-        return speakPiece(genai, tokenInfo, instruction, textToSpeak);
-      }, PIECE_ATTEMPTS).then(function (pcm) {
-        var blob = wrapWav(pcm, PCM_SAMPLE_RATE);
-        return {
-          blob: blob,
-          meta: {
-            language: langName,
-            chars: clip.length,
-            totalChars: (text || '').length,
-            truncated: (text || '').length > clip.length,
-            pieces: 1,
-          },
-        };
-      });
+      function queuePcm(pcmBytes) {
+        if (!audioCtx || !pcmBytes || pcmBytes.length < 2) return;
+        try {
+          var int16 = new Int16Array(pcmBytes.buffer, pcmBytes.byteOffset, Math.floor(pcmBytes.byteLength / 2));
+          var float32 = new Float32Array(int16.length);
+          for (var i = 0; i < int16.length; i += 1) {
+            float32[i] = int16[i] / 32768.0;
+          }
+          var audioBuf = audioCtx.createBuffer(1, float32.length, PCM_SAMPLE_RATE);
+          audioBuf.getChannelData(0).set(float32);
+
+          var src = audioCtx.createBufferSource();
+          src.buffer = audioBuf;
+          src.connect(audioCtx.destination);
+
+          var now = audioCtx.currentTime;
+          var start = Math.max(now, nextPlayTime);
+          src.start(start);
+          nextPlayTime = start + audioBuf.duration;
+          activeSources.push(src);
+        } catch (e) {}
+      }
+
+      function processChunk(idx) {
+        if (idx >= chunks.length) {
+          var fullPcm = concatBytes(allPcmPieces);
+          var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
+          return Promise.resolve({
+            blob: blob,
+            meta: {
+              language: langName,
+              chars: chunks.reduce(function (acc, c) { return acc + c.length; }, 0),
+              totalChars: (text || '').length,
+              truncated: false,
+              pieces: chunks.length,
+            },
+            stop: function () {
+              activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+              activeSources = [];
+            },
+          });
+        }
+
+        var pieceText = chunks[idx];
+        var prompt = 'Pronounce the following text in ' + langName + ':\n\n' + pieceText;
+
+        return withRetry(function () {
+          return speakChunkStreaming(genai, tokenInfo, prompt, queuePcm, function onFirstAudio() {
+            if (onStatus) onStatus('playing', langName, chunks.length, idx + 1);
+          });
+        }, PIECE_ATTEMPTS).then(function (piecePcm) {
+          allPcmPieces.push(piecePcm);
+          return processChunk(idx + 1);
+        });
+      }
+
+      return processChunk(0);
     });
   }
 
@@ -499,13 +562,18 @@
     '.afs-listen__panel{margin-top:10px;background:#fff;border:1px solid #D4DAD6;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:14px;width:300px;max-width:calc(100vw - 40px)}',
     '.afs-listen__panel[hidden]{display:none}',
     '.afs-listen__audio{width:100%;margin:2px 0 8px}',
-    /* An indeterminate bar, not a percentage: nothing here can honestly report
-       "40% done" (a piece either has not started, or it has finished), so the
-       bar promises only that work is happening, not how much is left. */
-    '.afs-listen__bar{position:relative;overflow:hidden;height:4px;border-radius:999px;background:#E7ECE9;margin:0 0 10px}',
-    '.afs-listen__bar::after{content:"";position:absolute;top:0;left:-40%;height:100%;width:40%;border-radius:999px;background:#52B788;animation:afs-listen-slide 1.1s ease-in-out infinite}',
-    '@keyframes afs-listen-slide{0%{left:-40%}50%{left:60%}100%{left:100%}}',
-    '@media (prefers-reduced-motion: reduce){.afs-listen__bar::after{animation:none;left:0;width:100%;opacity:.5}}',
+    '.afs-listen__status{display:flex;align-items:center;gap:10px;padding:8px 0;margin:2px 0 6px}',
+    '.afs-listen__status-text{font-size:13px;color:#2D6A4F;font-weight:600}',
+    '.afs-listen__pulse{width:8px;height:8px;border-radius:50%;background:#52B788;animation:afs-pulse 1.2s ease-in-out infinite;flex-shrink:0}',
+    '@keyframes afs-pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}',
+    '.afs-listen__wave{display:inline-flex;align-items:flex-end;gap:2px;height:14px;flex-shrink:0}',
+    '.afs-listen__wave span{width:3px;background:#2D6A4F;border-radius:2px;animation:afs-wave 0.9s ease-in-out infinite}',
+    '.afs-listen__wave span:nth-child(1){height:6px;animation-delay:0.1s}',
+    '.afs-listen__wave span:nth-child(2){height:14px;animation-delay:0.3s}',
+    '.afs-listen__wave span:nth-child(3){height:10px;animation-delay:0.2s}',
+    '.afs-listen__wave span:nth-child(4){height:12px;animation-delay:0.4s}',
+    '.afs-listen__wave span:nth-child(5){height:5px;animation-delay:0.15s}',
+    '@keyframes afs-wave{0%,100%{height:3px}50%{height:14px}}',
     '.afs-listen__note{font-size:12px;color:#5F6F66;margin:0 0 6px}',
     '.afs-listen__note--warn{background:#FDF3E3;border:1px solid #E8C88A;color:#7A5410;border-radius:8px;padding:8px 10px;margin:0 0 8px}',
     '.afs-listen__err{font-size:13px;color:#9B2C2C;margin:0}','.afs-listen__link{color:#2D6A4F;font-size:12px}',
@@ -586,28 +654,55 @@
 
     function start() {
       if (!select.value) {
-        // Open the picker itself rather than telling the reader to: one press
-        // to see the choice, not one press to be told there is one.
-        // showPicker() has to run synchronously off the gesture that got us
-        // here, or the browser refuses it as not user-initiated, so nothing
-        // async happens before this. Not every browser has it yet (Safari
-        // notably does not, as of this writing), so focus is the fallback:
-        // it still opens the native dropdown on the platforms this widget
-        // has to run in that on, and otherwise just lets the reader hit
-        // Space or Down to open it themselves without hunting for the control.
         try { select.showPicker(); } catch (e) { select.focus(); }
         return;
       }
+
+      var chosen = select.options[select.selectedIndex];
+      var languageName = chosen ? chosen.textContent : 'audio';
+
+      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      var audioCtx = null;
+      try {
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass({ sampleRate: PCM_SAMPLE_RATE });
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+      } catch (e) {}
+
+      var currentSession = null;
+
+      function stopAndClose() {
+        if (currentSession && currentSession.stop) currentSession.stop();
+        if (audioCtx && audioCtx.close) try { audioCtx.close(); } catch (e) {}
+        panel.hidden = true;
+        reset();
+      }
+
+      function setStatus(text, showPulse, isPlaying) {
+        panel.innerHTML =
+          '<div class="afs-listen__head">' +
+            '<span class="afs-listen__lang">' + escapeHtml(languageName) + '</span>' +
+            '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button>' +
+          '</div>' +
+          '<div class="afs-listen__status">' +
+            (isPlaying
+              ? '<div class="afs-listen__wave"><span></span><span></span><span></span><span></span><span></span></div>'
+              : (showPulse ? '<span class="afs-listen__pulse"></span>' : '')) +
+            '<span class="afs-listen__status-text">' + escapeHtml(text) + '</span>' +
+          '</div>';
+        var closeBtn = panel.querySelector('.afs-listen__close');
+        if (closeBtn) closeBtn.addEventListener('click', stopAndClose);
+      }
+
       button.disabled = true;
-      button.querySelector('.afs-listen__text').textContent = 'Preparing…';
+      button.querySelector('.afs-listen__text').textContent = 'Playing…';
       panel.hidden = false;
-      panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Reading this page…</p>';
+      setStatus('Reading page…', true, false);
 
       readThisPage()
         .then(function (page) {
           var langCode = select.value;
-          var chosen = select.options[select.selectedIndex];
-          var languageName = chosen ? chosen.textContent : 'audio';
           var pageLang = (document.documentElement.lang || (document.body && document.body.getAttribute('lang')) || '')
             .toLowerCase().split('-')[0].trim();
 
@@ -617,9 +712,14 @@
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
                 if (cached) return { blob: cached.blob, meta: cached.meta };
 
-                panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Making a ' +
-                  escapeHtml(languageName) + ' recording. It will start playing on its own.</p>';
-                return buildAudio(page.text, langCode, languageName, pageLang).then(function (result) {
+                setStatus('Translating to ' + languageName + '…', true, false);
+                return buildAudio(page.text, langCode, languageName, pageLang, audioCtx, function onStatus(stage, lName, totalChunks, currentChunk) {
+                  if (stage === 'playing') {
+                    var chunkLabel = totalChunks > 1 ? ' (' + currentChunk + '/' + totalChunks + ')' : '';
+                    setStatus('Playing ' + lName + chunkLabel, false, true);
+                  }
+                }).then(function (result) {
+                  currentSession = result;
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
                 });
@@ -634,27 +734,17 @@
             '<div class="afs-listen__head"><span class="afs-listen__lang">' +
               escapeHtml(meta.language || 'Audio') + '</span>' +
               '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button></div>' +
-            (meta.truncated
-              ? '<p class="afs-listen__note afs-listen__note--warn">This page was long, so we read only the first ' +
-                meta.chars.toLocaleString() + ' of ' + meta.totalChars.toLocaleString() + ' characters.</p>'
-              : '') +
             '<audio class="afs-listen__audio" controls autoplay src="' + url + '"></audio>' +
             '<div class="afs-listen__rate">' +
               '<span class="afs-listen__rate-label">How did that sound?</span>' +
               '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="false">' + thumbIcon(false) + '</button>' +
               '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="false">' + thumbIcon(true) + '</button>' +
             '</div>' +
-              // Attribution, not documentation. The old link was built from
-              // ORIGIN, which is wherever this script happens to be served from, so
-              // on a staging deploy it pointed at that deploy's about page. The
-              // brand's home is fixed, so point there instead.
-              '<p class="afs-listen__note">Powered by ' +
-                '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
+            '<p class="afs-listen__note">Powered by ' +
+              '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
+
           var close = panel.querySelector('.afs-listen__close');
-          close.addEventListener('click', function () {
-            panel.hidden = true;
-            URL.revokeObjectURL(url);
-          });
+          close.addEventListener('click', stopAndClose);
 
           var rateButtons = panel.querySelectorAll('.afs-listen__rate-btn');
           var rateLabel = panel.querySelector('.afs-listen__rate-label');
