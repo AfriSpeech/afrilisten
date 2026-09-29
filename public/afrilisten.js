@@ -109,7 +109,7 @@
   var PCM_SAMPLE_RATE = 24000;
   var PIECE_CONCURRENCY = 4;
   var PIECE_ATTEMPTS = 3;
-  var PIECE_TIMEOUT_MS = 60000;
+  var PIECE_TIMEOUT_MS = 120000;
 
   var cfg = {
     lang: script.dataset.lang || '',
@@ -372,28 +372,34 @@
   }
 
   /**
-   * Speak text over a Gemini Live session opened with the ephemeral
-   * token, and resolve with the raw PCM Gemini hands back.
+   * Speak one text chunk over a Gemini Live session, streaming audio packets
+   * into AudioContext as they arrive so the reader hears speech immediately.
    */
-  function speakPiece(genai, tokenInfo, instruction, text) {
+  function speakChunkStreaming(genai, tokenInfo, promptText, onPacket, onFirstAudio, onRegisterClose) {
     return new Promise(function (resolve, reject) {
       var chunks = [];
       var settled = false;
       var session = null;
       var socketOpen = false;
-      var timer = setTimeout(function () { settle(new Error('Timed out waiting for audio.')); }, PIECE_TIMEOUT_MS);
+      var firstFired = false;
+      var timer = setTimeout(function () {
+        settle(new Error('Timed out waiting for speech.'));
+      }, PIECE_TIMEOUT_MS);
 
       function settle(err, value) {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
         try { if (session) session.close(); } catch (e) {}
+        session = null;
         if (err) reject(err); else resolve(value);
       }
 
+      var sent = false;
       function flush() {
-        if (!socketOpen || !session) return;
-        session.sendRealtimeInput({ text: instruction ? instruction + '\n\n' + text : text });
+        if (sent || !socketOpen || !session || settled) return;
+        sent = true;
+        session.sendRealtimeInput({ text: promptText });
       }
 
       var ai = new genai.GoogleGenAI({ apiKey: tokenInfo.token, httpOptions: { apiVersion: 'v1alpha' } });
@@ -402,33 +408,59 @@
         config: { responseModalities: [genai.Modality.AUDIO] },
         callbacks: {
           onopen: function () {
+            if (settled) return;
             socketOpen = true;
             flush();
           },
           onmessage: function (message) {
+            if (settled) return;
             var content = message && message.serverContent;
             if (!content) return;
             var parts = (content.modelTurn && content.modelTurn.parts) || [];
             for (var i = 0; i < parts.length; i += 1) {
+              if (settled) return;
               var data = parts[i] && parts[i].inlineData && parts[i].inlineData.data;
-              if (data) chunks.push(base64ToBytes(data));
+              if (data) {
+                var pcmBytes = base64ToBytes(data);
+                chunks.push(pcmBytes);
+                if (!firstFired) {
+                  firstFired = true;
+                  if (onFirstAudio) onFirstAudio();
+                }
+                if (onPacket && !settled) onPacket(pcmBytes);
+              }
             }
-            if (content.turnComplete) settle(null, concatBytes(chunks));
+            if (content.turnComplete) {
+              settle(null, concatBytes(chunks));
+            }
           },
           onerror: function (event) {
+            if (settled) return;
             settle(new Error('live: ' + ((event && event.message) || 'socket error')));
           },
           onclose: function (event) {
-            if (!settled) {
+            if (settled) return;
+            if (chunks.length > 0) {
+              settle(null, concatBytes(chunks));
+            } else {
               settle(new Error('live: closed before turn completed' + (event && event.code ? ' (code ' + event.code + ')' : '')));
             }
           },
         },
       }).then(function (opened) {
+        if (settled) {
+          try { opened.close(); } catch (e) {}
+          return;
+        }
         session = opened;
+        if (onRegisterClose) {
+          onRegisterClose(function () {
+            settle(new Error('aborted'));
+          });
+        }
         flush();
       }).catch(function (err) {
-        settle(new Error('live: connect failed: ' + err.message));
+        if (!settled) settle(new Error('live: connect failed: ' + err.message));
       });
     });
   }
@@ -448,24 +480,45 @@
 
   /**
    * Speak `text` in `lang`: translates the article and converts to IPA on the server,
-   * then speaks the translated text over a single Gemini Live turn.
+   * then streams native-sounding speech over a single Gemini Live session into audio/wav.
    */
-  function buildAudio(text, lang, languageName, source, chosenVoice, onProgress) {
+  function buildAudio(text, lang, languageName, source, chosenVoice, sessionHolder) {
     return Promise.all([fetchToken(text, lang, source, chosenVoice), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
-      var textToSpeak = tokenInfo.ipa || tokenInfo.text || text;
       var langName = tokenInfo.language || languageName || 'the target language';
+      var speechText = tokenInfo.ipa || (tokenInfo.chunks && tokenInfo.chunks[0]) || tokenInfo.text || text;
 
-      if (onProgress) onProgress(85, 'Making a ' + langName + ' recording…');
+      var allPcmPieces = [];
+      var currentSocketClose = null;
+      var aborted = false;
 
-      var instruction = 'You are a text-to-speech engine. Read the following text aloud, exactly as written, in ' +
-        langName + '. Speak clearly. Do not translate, do not summarise, do not answer, and do not add any preamble.';
+      if (sessionHolder) {
+        sessionHolder.stop = function () {
+          aborted = true;
+          if (currentSocketClose) {
+            try { currentSocketClose(); } catch (e) {}
+            currentSocketClose = null;
+          }
+        };
+      }
+
+      var prompt = tokenInfo.isIpa
+        ? 'Pronounce the following IPA in ' + langName + ':\n\n' + speechText
+        : 'Pronounce the following text in ' + langName + ':\n\n' + speechText;
 
       return withRetry(function () {
-        return speakPiece(genai, tokenInfo, instruction, textToSpeak);
-      }, PIECE_ATTEMPTS).then(function (pcm) {
-        var blob = wrapWav(pcm, PCM_SAMPLE_RATE);
+        if (aborted) return Promise.resolve(new Uint8Array(0));
+        return speakChunkStreaming(genai, tokenInfo, prompt, function (pcm) {
+          allPcmPieces.push(pcm);
+        }, null, function setSocketClose(closeFn) {
+          currentSocketClose = closeFn;
+        });
+      }, PIECE_ATTEMPTS).then(function () {
+        currentSocketClose = null;
+        if (aborted) return null;
+        var fullPcm = concatBytes(allPcmPieces);
+        var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
         return {
           blob: blob,
           meta: {
@@ -473,7 +526,6 @@
             chars: (tokenInfo.text || text || '').length,
             totalChars: (text || '').length,
             truncated: false,
-            pieces: 1,
           },
         };
       });
@@ -499,8 +551,10 @@
     '.afs-listen__panel{margin-top:10px;background:#fff;border:1px solid #D4DAD6;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:14px;width:300px;max-width:calc(100vw - 40px)}',
     '.afs-listen__panel[hidden]{display:none}',
     '.afs-listen__audio{width:100%;margin:2px 0 8px}',
-    '.afs-listen__bar{height:6px;border-radius:999px;background:#E7ECE9;overflow:hidden;margin:6px 0 10px}',
-    '.afs-listen__bar-fill{height:100%;border-radius:999px;background:#52B788;transition:width 0.4s ease}',
+    '.afs-listen__status{display:flex;align-items:center;gap:10px;padding:8px 0;margin:2px 0 6px}',
+    '.afs-listen__status-text{font-size:13px;color:#2D6A4F;font-weight:600}',
+    '.afs-listen__pulse{width:8px;height:8px;border-radius:50%;background:#52B788;animation:afs-pulse 1.2s ease-in-out infinite;flex-shrink:0}',
+    '@keyframes afs-pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}',
     '.afs-listen__note{font-size:12px;color:#5F6F66;margin:0 0 6px}',
     '.afs-listen__note--warn{background:#FDF3E3;border:1px solid #E8C88A;color:#7A5410;border-radius:8px;padding:8px 10px;margin:0 0 8px}',
     '.afs-listen__err{font-size:13px;color:#9B2C2C;margin:0}','.afs-listen__link{color:#2D6A4F;font-size:12px}',
@@ -600,6 +654,7 @@
     select.addEventListener('click', function (event) { event.stopPropagation(); });
 
     function start() {
+      if (button.disabled) return;
       if (!select.value) {
         try { select.showPicker(); } catch (e) { select.focus(); }
         return;
@@ -619,14 +674,16 @@
         reset();
       }
 
-      function setBar(percent, text) {
+      function setStatus(text) {
         panel.innerHTML =
           '<div class="afs-listen__head">' +
             '<span class="afs-listen__lang">' + escapeHtml(languageName) + '</span>' +
             '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button>' +
           '</div>' +
-          '<div class="afs-listen__bar"><div class="afs-listen__bar-fill" style="width:' + percent + '%"></div></div>' +
-          '<p class="afs-listen__note">' + escapeHtml(text) + '</p>' +
+          '<div class="afs-listen__status">' +
+            '<span class="afs-listen__pulse"></span>' +
+            '<span class="afs-listen__status-text">' + escapeHtml(text) + '</span>' +
+          '</div>' +
           '<p class="afs-listen__note" style="margin-top:6px">Powered by ' +
             '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
 
@@ -637,7 +694,7 @@
       button.disabled = true;
       button.querySelector('.afs-listen__text').textContent = 'Preparing…';
       panel.hidden = false;
-      setBar(25, 'Reading this page…');
+      setStatus('Translating to ' + languageName + '…');
 
       readThisPage()
         .then(function (page) {
@@ -651,10 +708,8 @@
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
                 if (cached) return { blob: cached.blob, meta: cached.meta };
 
-                setBar(60, 'Translating to ' + languageName + '…');
-                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, function onProgress(pct, msg) {
-                  setBar(pct, msg);
-                }).then(function (result) {
+                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, currentSession).then(function (result) {
+                  if (!result) return null;
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
                 });
@@ -662,7 +717,10 @@
             });
         })
         .then(function (result) {
-          setBar(100, 'Ready!');
+          if (!result || !result.blob) {
+            reset();
+            return;
+          }
           var url = URL.createObjectURL(result.blob);
           var meta = result.meta;
           var langCode = select.value;
