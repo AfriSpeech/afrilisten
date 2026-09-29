@@ -36,7 +36,7 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 
 **That's it!** A floating **Listen** button will appear on the bottom-right of your page. When readers click it, they can select their language and hear the page read aloud immediately.
 
-> **Usage Note:** The ready-to-integrate drop-in widget connects to AfriListen's shared community service by default and is intended for **basic and non-commercial use** (personal blogs, non-profits, testing, and evaluation). For high-traffic, production, or commercial websites, it is recommended to set up your own server using the code provided in this repository so you have dedicated capacity, your own rate limits, and full control over quotas. See [Self-Hosting & Commercial Use](#self-hosting--commercial-use).
+> **Usage Note:** The ready-to-integrate drop-in widget connects to AfriListen's shared community service by default and is intended for **basic and non-commercial use** (personal blogs, non-profits, testing, and evaluation), with a reading limit of up to **1,000 characters** per page. For high-traffic, production, or commercial websites, or to read full-length articles with custom limits, it is recommended to set up your own server using the code provided in this repository so you have dedicated capacity, your own rate limits, and full control over quotas. See [Self-Hosting & Commercial Use](#self-hosting--commercial-use).
 
 ---
 
@@ -87,7 +87,7 @@ You can customize the button's language, position, and label using `data-*` attr
 
 ## Self-Hosting & Commercial Use
 
-The shared community endpoint is intended for basic and non-commercial websites. For commercial websites, high-traffic publications, or sites requiring dedicated capacity:
+The shared community endpoint is intended for basic and non-commercial websites (capped at 1,000 characters per reading). For commercial websites, high-traffic publications, or sites requiring longer texts and dedicated capacity:
 
 - **Deploy Your Own Server (Recommended for Commercial Sites)**: Run your own server using the provided code on Coolify (Docker), Modal, or any VPS in minutes. It runs on your own Gemini API key with custom rate limits and zero shared quota contention. See [DEPLOY.md](DEPLOY.md).
 - **Custom Player (API Reference)**: Build a custom audio player UI instead of using the drop-in widget. See [DEPLOY.md#building-a-custom-player-api-reference](DEPLOY.md#building-a-custom-player-api-reference).
