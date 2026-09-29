@@ -467,5 +467,5 @@ npm run test:e2e          # real Gemini: mints a token and speaks with it
 | `src/lib/languages.mjs` | The language catalogue (benchmark-selected -- see README.md) and `scopedLanguages()`, which a deployer's `LISTEN_LANGUAGES`/`LISTEN_COUNTRIES` narrows. |
 | `scripts/build-languages.mjs` | Regenerates the language table from gemini-word-mt-bench and afriso. |
 | `test/` | One file per area, each runnable on its own. |
-| `public/afrilisten.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |
+| `public/afrilisten.js` | The actual client: reads the page, fetches an ephemeral token with the server's IPA translation, and streams real-time speech directly from Gemini Live over WebSocket. Served to embedders straight from this repo via jsDelivr; see the README. |
 | `public/afrispeech/readability.min.js` | Vendored copy of Mozilla's Readability, used by the widget to extract article text. Kept alongside the widget so the two are always the same version. |
