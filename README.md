@@ -2,7 +2,7 @@
 
 A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **51 African languages**.
 
-**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the text via Google Translate (using a semantic Thai pivot), chunks it along sentence boundaries, converts it to IPA phonetics via [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and streams native-sounding speech in real time via Gemini Live. It works just as seamlessly on sites already written in an African language.
+**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the text via Google Translate (using a semantic Thai pivot), converts it to IPA phonetics via [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and streams native-sounding speech in real time via Gemini Live. It works just as seamlessly on sites already written in an African language.
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 

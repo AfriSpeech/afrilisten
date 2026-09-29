@@ -475,15 +475,15 @@
   }
 
   /**
-   * Speak `text` in `lang`: translates the article on the server in one shot,
-   * receives sentence-bounded chunks, and streams audio chunk-by-chunk in real time.
+   * Speak `text` in `lang`: translates the article and converts to IPA on the server,
+   * then streams native-sounding speech directly over a single Gemini Live session.
    */
   function buildAudio(text, lang, languageName, source, chosenVoice, audioCtx, onStatus, sessionHolder) {
     return Promise.all([fetchToken(text, lang, source, chosenVoice), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
-      var chunks = tokenInfo.chunks && tokenInfo.chunks.length ? tokenInfo.chunks : [tokenInfo.text || text];
       var langName = tokenInfo.language || languageName || 'the target language';
+      var speechText = tokenInfo.ipa || (tokenInfo.chunks && tokenInfo.chunks[0]) || tokenInfo.text || text;
 
       var allPcmPieces = [];
       var nextPlayTime = 0;
@@ -541,59 +541,46 @@
         } catch (e) {}
       }
 
-      function processChunk(idx) {
-        if (aborted) return Promise.resolve(null);
-        if (idx >= chunks.length) {
-          var fullPcm = concatBytes(allPcmPieces);
-          var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
-          var remainingSec = audioCtx ? Math.max(0, nextPlayTime - audioCtx.currentTime) : 0;
-          return new Promise(function (resolve) {
-            setTimeout(function () {
-              if (aborted) { resolve(null); return; }
-              resolve({
-                blob: blob,
-                fromCache: false,
-                meta: {
-                  language: langName,
-                  chars: chunks.reduce(function (acc, c) { return acc + c.length; }, 0),
-                  totalChars: (text || '').length,
-                  truncated: false,
-                  pieces: chunks.length,
-                },
-                stop: function () {
-                  activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
-                  activeSources = [];
-                },
-              });
-            }, Math.ceil(remainingSec * 1000));
-          });
-        }
+      var prompt = tokenInfo.isIpa
+        ? 'Pronounce the following IPA in ' + langName + ':\n\n' + speechText
+        : 'Pronounce the following text in ' + langName + ':\n\n' + speechText;
 
-        var pieceText = chunks[idx];
-        var prompt = tokenInfo.isIpa
-          ? 'Pronounce the following IPA in ' + langName + ':\n\n' + pieceText
-          : 'Pronounce the following text in ' + langName + ':\n\n' + pieceText;
-
-        return withRetry(function () {
-          if (aborted) return Promise.resolve(new Uint8Array(0));
-          return speakChunkStreaming(genai, tokenInfo, prompt, queuePcm, function onFirstAudio() {
-            if (onStatus) onStatus('playing', langName, chunks.length, idx + 1);
-          }, function setSocketClose(closeFn) {
-            currentSocketClose = closeFn;
-          });
-        }, PIECE_ATTEMPTS).then(function (piecePcm) {
-          currentSocketClose = null;
-          if (aborted) return null;
-          allPcmPieces.push(piecePcm);
-          // Insert a small natural pause between sentences so they don't abruptly rush into one another
-          if (audioCtx && nextPlayTime > 0) {
-            nextPlayTime += 0.15;
-          }
-          return processChunk(idx + 1);
+      return withRetry(function () {
+        if (aborted) return Promise.resolve(new Uint8Array(0));
+        return speakChunkStreaming(genai, tokenInfo, prompt, function (pcm) {
+          allPcmPieces.push(pcm);
+          queuePcm(pcm);
+        }, function onFirstAudio() {
+          if (onStatus) onStatus('playing', langName);
+        }, function setSocketClose(closeFn) {
+          currentSocketClose = closeFn;
         });
-      }
-
-      return processChunk(0);
+      }, PIECE_ATTEMPTS).then(function () {
+        currentSocketClose = null;
+        if (aborted) return null;
+        var fullPcm = concatBytes(allPcmPieces);
+        var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
+        var remainingSec = audioCtx ? Math.max(0, nextPlayTime - audioCtx.currentTime) : 0;
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            if (aborted) { resolve(null); return; }
+            resolve({
+              blob: blob,
+              fromCache: false,
+              meta: {
+                language: langName,
+                chars: (tokenInfo.text || text || '').length,
+                totalChars: (text || '').length,
+                truncated: false,
+              },
+              stop: function () {
+                activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+                activeSources = [];
+              },
+            });
+          }, Math.ceil(remainingSec * 1000));
+        });
+      });
     });
   }
 
@@ -793,10 +780,9 @@
                 if (cached) return { blob: cached.blob, meta: cached.meta, fromCache: true };
 
                 setStatus('Translating to ' + languageName + '…', true, false);
-                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, audioCtx, function onStatus(stage, lName, totalChunks, currentChunk) {
+                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, audioCtx, function onStatus(stage, lName) {
                   if (stage === 'playing') {
-                    var chunkLabel = totalChunks > 1 ? ' (' + currentChunk + '/' + totalChunks + ')' : '';
-                    setStatus('Playing ' + lName + chunkLabel, false, true);
+                    setStatus('Playing ' + lName, false, true);
                   }
                 }, currentSession).then(function (result) {
                   if (!result) return null;

@@ -236,7 +236,7 @@ export default {
       }
 
       let originalTranslation = '';
-      let chunks = [];
+      let ipaText = '';
 
       if (body.text && typeof body.text === 'string' && body.text.trim()) {
         const clipped = clipToLimit(body.text, config.maxChars || 1000);
@@ -247,17 +247,15 @@ export default {
         } catch {
           originalTranslation = clipped;
         }
-        // Chunk strictly along sentence boundaries so each piece fits a Gemini Live turn cleanly
-        chunks = chunkBySentences(originalTranslation, config.chunkChars || 200);
-      }
-      if (!chunks.length && originalTranslation) chunks = [originalTranslation];
 
-      if (chunks.length && targetLang?.code) {
-        chunks = await Promise.all(chunks.map((c) => toIpa(c, targetLang.code)));
+        if (originalTranslation && targetLang?.code) {
+          ipaText = await toIpa(originalTranslation, targetLang.code);
+        }
       }
+      if (!ipaText && originalTranslation) ipaText = originalTranslation;
 
-      const pieces = Math.max(1, Math.min(40, chunks.length || Number.parseInt(body.pieces, 10) || 1));
-      const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
+      const chunks = [ipaText || originalTranslation];
+      const uses = Math.max(config.tokenMinUses, 2);
 
       const requestedVoice = typeof body.voice === 'string' ? body.voice.trim() : '';
       const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Kore');
@@ -282,8 +280,9 @@ export default {
           voice: chosenVoice,
           expireTime: minted.expireTime,
           uses,
+          ipa: ipaText,
           chunks,
-          isIpa: true,
+          isIpa: Boolean(ipaText && ipaText !== originalTranslation),
           text: originalTranslation,
           language: targetLang?.name || 'Swahili',
           languageCode: targetLang?.code || 'swh',

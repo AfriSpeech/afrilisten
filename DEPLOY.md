@@ -6,7 +6,7 @@ point the website widget at it. The service itself is described in
 
 ## What this actually is
 
-A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the article via Google Translate (using a semantic Thai pivot `source -> th -> target`), chunks the translated text along sentence boundaries, converts each piece to IPA phonetics with [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to stream real-time audio.
+A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the article via Google Translate (using a semantic Thai pivot `source -> th -> target`), converts the translated text to IPA phonetics with [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to stream real-time audio as it is generated.
 
 That makes this fast and simple: there is no audio pipeline or audio transcoding on the server, no long-lived WebSocket connections through your server, and no audio bandwidth overhead.
 
@@ -363,16 +363,16 @@ Response:
 {
   "token": "auth_tokens/...",
   "model": "gemini-3.1-flash-live-preview",
-  "voice": "Charon",
+  "voice": "Kore",
   "expireTime": "...",
-  "chunks": ["Chuo kikuu kilitangaza mpango mpya...", "..."],
+  "ipa": "t͡ʃuo kikuː kilitaᵑɡaza mpaᵑɡo mpya...",
   "originalTranslation": "Chuo kikuu kilitangaza mpango mpya...",
   "language": "Swahili",
   "languageCode": "swh"
 }
 ```
 
-The server translates the text via Thai pivot (`source -> th -> target`), chunks the translated text along sentence boundaries, converts each piece to IPA phonetics via `africa-g2p`, and returns the IPA chunks alongside a short-lived ephemeral token.
+The server translates the text via Thai pivot (`source -> th -> target`), converts it to IPA phonetics via `africa-g2p`, and returns the IPA representation alongside a short-lived ephemeral token.
 
 ### 3. Stream audio from Gemini Live in the browser
 
