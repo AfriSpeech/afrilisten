@@ -2,6 +2,8 @@
 
 A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **69 African languages**.
 
+**Built primarily for websites written in English, French, Portuguese, or other global languages** — bridging the digital language divide by translating and narrating text live into a reader's native African language. It works just as seamlessly on sites already written in an African language (reading the text directly aloud or translating across languages).
+
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 
 ---
@@ -30,6 +32,13 @@ By default, the widget connects to AfriListen's shared community service — no 
 - **Reader Feedback**: Built-in thumbs up/down rating buttons let readers rate translation and speech quality, helping improve African language support.
 - **Mobile & Desktop Ready**: Responsive floating player with language search, audio playback controls, and customizable positioning.
 - **Fast & Lightweight**: Zero external stylesheets or fonts. Mozilla Readability and speech libraries are lazy-loaded only when the reader clicks Listen.
+
+---
+
+## How It Reads Your Website
+
+- **Websites in English, French, Portuguese, etc. (Primary Use Case):** Most web content across Africa and worldwide is published in global languages. When a reader clicks Listen on an article written in English, French, Portuguese, or another language, AfriListen translates each section on the fly and speaks it aloud in their selected African mother tongue.
+- **Websites Already in an African Language:** If your website is already written in one of the 69 supported African languages (e.g. an article published in Swahili, Yoruba, or Amharic), AfriListen reads the text directly aloud in that language, or can translate it into any of the other 68 African languages if the reader prefers.
 
 ---
 
