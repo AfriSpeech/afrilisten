@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Drop-in Listen widget for websites in high-resource languages (e.g. English, French, Arabic) — translates via Google Translate and reads web pages aloud in 51 African languages.",
+  "description": "Drop-in Listen widget for websites in high-resource languages (e.g. English, French, Arabic) that translates and reads web pages aloud in 51 African languages.",
   "license": "MIT",
   "main": "src/index.mjs",
   "scripts": {
