@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Drop-in Listen widget that translates and speaks any web page (English, French, Arabic, etc.) aloud in 69 African languages.",
+  "description": "Drop-in Listen widget that translates and speaks web pages in high-resource languages (e.g. English, French, Arabic) aloud in 69 African languages.",
   "license": "MIT",
   "main": "src/index.mjs",
   "scripts": {
