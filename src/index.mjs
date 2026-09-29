@@ -29,6 +29,8 @@
  * exactly that: anyone can read /feedback/report, not just whoever is
  * running this instance.
  */
+import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { checkAuth, corsHeaders } from './lib/auth.mjs';
 import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
 import { mintToken } from './lib/tokens.mjs';
@@ -135,6 +137,30 @@ export default {
         },
         { headers: { ...cors, 'cache-control': 'public, max-age=3600' } },
       );
+    }
+
+    if ((url.pathname === '/afrilisten.js' || url.pathname === '/public/afrilisten.js') && (request.method === 'GET' || request.method === 'HEAD')) {
+      const code = await readFile(path.join(process.cwd(), 'public/afrilisten.js'), 'utf8').catch(() => null);
+      if (!code) return new Response('Not found', { status: 404, headers: cors });
+      return new Response(request.method === 'HEAD' ? null : code, {
+        headers: {
+          ...cors,
+          'content-type': 'application/javascript; charset=utf-8',
+          'cache-control': 'public, max-age=60, stale-while-revalidate=300',
+        },
+      });
+    }
+
+    if ((url.pathname === '/afrispeech/readability.min.js' || url.pathname === '/public/afrispeech/readability.min.js') && (request.method === 'GET' || request.method === 'HEAD')) {
+      const code = await readFile(path.join(process.cwd(), 'public/afrispeech/readability.min.js'), 'utf8').catch(() => null);
+      if (!code) return new Response('Not found', { status: 404, headers: cors });
+      return new Response(request.method === 'HEAD' ? null : code, {
+        headers: {
+          ...cors,
+          'content-type': 'application/javascript; charset=utf-8',
+          'cache-control': 'public, max-age=86400',
+        },
+      });
     }
 
     /* Public, deliberately, and so checked before the key gate below: see the
