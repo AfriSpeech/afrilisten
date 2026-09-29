@@ -1,8 +1,7 @@
 # AfriSpeech Listen
 
-Drop one script tag on your site and readers get a **Listen** button that reads
-the page they are on, translated into any of 457 African languages and spoken
-aloud. No build step, no framework, no SDK to install.
+Drop one script tag on your site and readers get a **Listen** button that allows them to hear the
+content of the website spoken aloud in 457 African languages. No build step, no framework, no SDK to install.
 
 ## How this works
 
