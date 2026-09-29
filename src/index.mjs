@@ -222,18 +222,26 @@ export default {
         || findSpeechLanguage(body.locale ? defaultForLocale(body.locale) : null)
         || findSpeechLanguage('swh');
 
+      let sourceGoogle = 'auto';
+      if (body.source && typeof body.source === 'string' && body.source.trim() && body.source !== 'auto') {
+        const sourceMatch = findSpeechLanguage(body.source.trim());
+        sourceGoogle = sourceMatch ? sourceMatch.google : body.source.trim().toLowerCase().split('-')[0];
+      }
+
       let spokenText = '';
       let originalTranslation = '';
 
       if (body.text && typeof body.text === 'string' && body.text.trim()) {
         const clipped = clipToLimit(body.text, 100);
         try {
-          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', body.source || 'auto');
+          // If source matches target or is detected as target, translateViaThai skips the Thai hop
+          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle);
           originalTranslation = trans.text || clipped;
+          // Always universalise before sending to Gemini Live
           spokenText = await universalize(originalTranslation, targetLang?.code || 'swh');
         } catch {
           originalTranslation = clipped;
-          spokenText = clipped;
+          spokenText = await universalize(clipped, targetLang?.code || 'swh');
         }
       }
 

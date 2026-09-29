@@ -93,6 +93,15 @@ export async function translateViaThai(text, targetCode, sourceLang = 'auto') {
   if (!text || !targetCode) return { text: text || '', detected: null, translated: false };
   const clip = clipToLimit(text, 100);
 
+  // If source language matches target language, skip translation immediately
+  if (sourceLang && sourceLang !== 'auto') {
+    const s = String(sourceLang).toLowerCase().split('-')[0].trim();
+    const t = String(targetCode).toLowerCase().split('-')[0].trim();
+    if (s === t) {
+      return { text: clip, detected: s, translated: false };
+    }
+  }
+
   // If target is Thai itself
   if (targetCode === 'th') {
     try {

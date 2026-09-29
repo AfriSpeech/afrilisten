@@ -225,11 +225,11 @@
   }
 
   /** Ask the service to translate the first 100 characters via Thai pivot and mint a token. */
-  function fetchToken(text, lang) {
+  function fetchToken(text, lang, source) {
     return fetch(speechUrl('/token'), {
       method: 'POST',
       headers: speechHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ text: text, lang: lang, pieces: 1 }),
+      body: JSON.stringify({ text: text, lang: lang, source: source || '', pieces: 1 }),
     }).then(function (response) {
       if (!response.ok) return speechError(response, 'We could not start a session.');
       return response.json();
@@ -451,10 +451,10 @@
    * Speak `text` in `lang`: sends the first 100 characters to the server to translate
    * via Thai pivot and universalise, then speaks the translated text over a single Gemini Live turn.
    */
-  function buildAudio(text, lang, languageName) {
+  function buildAudio(text, lang, languageName, source) {
     var clip = clipToLimit(text, 100);
 
-    return Promise.all([fetchToken(clip, lang), loadGenai()]).then(function (results) {
+    return Promise.all([fetchToken(clip, lang, source), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
       var textToSpeak = tokenInfo.text || clip;
@@ -608,6 +608,8 @@
           var langCode = select.value;
           var chosen = select.options[select.selectedIndex];
           var languageName = chosen ? chosen.textContent : 'audio';
+          var pageLang = (document.documentElement.lang || (document.body && document.body.getAttribute('lang')) || '')
+            .toLowerCase().split('-')[0].trim();
 
           return cacheKeyFor(page.text, langCode)
             .catch(function () { return null; }) // no SubtleCrypto: skip the cache, not the reading
@@ -615,15 +617,9 @@
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
                 if (cached) return { blob: cached.blob, meta: cached.meta };
 
-                // Gemini Live translates and speaks in one turn now, so a full
-                // page is a matter of seconds rather than the minute or two
-                // the old translate-then-speak pipeline needed. Say that
-                // once, naming the language they picked, and let the bar
-                // carry the wait rather than a countdown that cannot
-                // honestly report progress mid-piece.
                 panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Making a ' +
                   escapeHtml(languageName) + ' recording. It will start playing on its own.</p>';
-                return buildAudio(page.text, langCode, languageName).then(function (result) {
+                return buildAudio(page.text, langCode, languageName, pageLang).then(function (result) {
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
                 });
