@@ -89,7 +89,7 @@
   // rather than needing a cleared cache. The key carries a version so a
   // change to what gets cached here invalidates what is already stored,
   // rather than a stale shape lingering until its TTL happens to expire.
-  var CATALOGUE_CACHE_KEY = 'afrispeech.languages.v2';
+  var CATALOGUE_CACHE_KEY = 'afrilisten.languages.v3';
   var CATALOGUE_TTL = 60 * 60 * 1000;
   // Feedback is a shared, cross-deployment signal -- every widget everywhere
   // reports to the one place ratings accumulate, rather than each deployer
@@ -690,7 +690,9 @@
               ? '<div class="afs-listen__wave"><span></span><span></span><span></span><span></span><span></span></div>'
               : (showPulse ? '<span class="afs-listen__pulse"></span>' : '')) +
             '<span class="afs-listen__status-text">' + escapeHtml(text) + '</span>' +
-          '</div>';
+          '</div>' +
+          '<p class="afs-listen__note" style="margin-top:6px">Powered by ' +
+            '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
         var closeBtn = panel.querySelector('.afs-listen__close');
         if (closeBtn) closeBtn.addEventListener('click', stopAndClose);
       }
