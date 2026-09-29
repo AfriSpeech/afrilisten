@@ -50,7 +50,7 @@ if (!fs.existsSync(summaryPath)) {
 // otherwise survive the tier cut.
 const EXCLUDE = new Set([
   'ara', 'arb', 'arz', 'avl', 'ayl', 'apd', 'aec', 'acq', 'ary', 'aeb',
-  'pga', 'shu', 'aju', 'arq', 'aao', 'yud', 'jrb', // Arabic and its varieties
+  'pga', 'shu', 'aju', 'arq', 'aao', 'yud', 'jrb', 'mey', // Arabic and its varieties
   'spa', 'yid', 'ydd', 'lad', // Spanish, Yiddish, Eastern Yiddish, Ladino
 ]);
 
@@ -107,12 +107,12 @@ for (const row of rows) {
 }
 console.log(`afriso: ${afriso.size} languages.`);
 
-const MIN_SCORE = 40.0;
+const MIN_SCORE = 30.0;
 const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
 const qualifying = summary.languages.filter(
   (l) => (l.score >= MIN_SCORE || l.score_core >= MIN_SCORE) && !EXCLUDE.has(l.iso639_3),
 );
-console.log(`bench: ${summary.languages.length} scored, ${qualifying.length} at >= 40% after exclusions.`);
+console.log(`bench: ${summary.languages.length} scored, ${qualifying.length} at >= 30% after exclusions.`);
 
 const speechDataPath = path.join(root, 'src', 'lib', 'speech-data.mjs');
 const existingSource = fs.readFileSync(speechDataPath, 'utf8');

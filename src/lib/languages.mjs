@@ -74,14 +74,14 @@ export function findSpeechLanguage(value) {
  */
 const DEFAULT_BY_COUNTRY = {
   // East
-  TZ: 'swh', KE: 'swh', UG: 'lug', RW: 'kin', BI: 'kin', CD: 'lin',
-  CG: 'lin', GA: 'fon', CM: 'pcm', CF: 'sag', ET: 'amh', SO: 'swh',
-  DJ: 'amh', ER: 'tir', SS: 'ach', SD: 'tir',
+  TZ: 'swh', KE: 'swh', UG: 'lug', RW: 'kin', BI: 'run', CD: 'lin',
+  CG: 'lin', GA: 'fon', CM: 'pcm', CF: 'sag', ET: 'amh', SO: 'som',
+  DJ: 'som', ER: 'tir', SS: 'dik', SD: 'tir',
   // Southern
   ZA: 'sot', ZW: 'sna', ZM: 'nya', BW: 'tsn', NA: 'afr', LS: 'sot',
   SZ: 'tso', MW: 'nya',
   // West
-  NG: 'yor', GH: 'aka', TG: 'ewe', CI: 'aka', SN: 'wol', GM: 'wol',
+  NG: 'yor', GH: 'aka', TG: 'ewe', CI: 'dyu', SN: 'wol', GM: 'wol',
   // Islands & others
   MG: 'plt', SC: 'crs', MU: 'mfe', SL: 'kri', LR: 'mev', GN: 'sus', BJ: 'fon',
 };
