@@ -67,86 +67,13 @@ You can customize the button's language, position, and label using `data-*` attr
 
 ## Supported Languages
 
-AfriListen supports all **69 African languages** that score **30% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)). You can view live community evaluation ratings for each language on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+AfriListen supports all **69 African languages** that score **30% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
 
-### East Africa (16)
-- **Acoli** (`ach`) &bull; South Sudan, Uganda
-- **Amharic** (`amh`) &bull; Ethiopia, Djibouti
-- **Borana-Arsi-Guji Oromo** (`gax`) &bull; Ethiopia, Kenya
-- **Congo Swahili** (`swc`) &bull; DR Congo
-- **Digo** (`dig`) &bull; Kenya, Tanzania
-- **Embu** (`ebu`) &bull; Kenya
-- **Ganda** (`lug`) &bull; Uganda
-- **Kikuyu** (`kik`) &bull; Kenya
-- **Kinyarwanda** (`kin`) &bull; Rwanda, Uganda, DR Congo
-- **Nyankole** (`nyn`) &bull; Uganda
-- **Nyoro** (`nyo`) &bull; Uganda
-- **Rundi** (`run`) &bull; Burundi, Rwanda, DR Congo
-- **Somali** (`som`) &bull; Somalia, Djibouti, Ethiopia, Kenya
-- **Swahili** (`swh`) &bull; Tanzania, Kenya, Uganda, Rwanda, Burundi
-- **Tigrinya** (`tir`) &bull; Eritrea, Ethiopia
-- **West Central Oromo** (`gaz`) &bull; Ethiopia
-
-### West Africa (30)
-- **Abron** (`abr`) &bull; Ghana, Côte d'Ivoire
-- **Adangme** (`ada`) &bull; Ghana
-- **Akan / Twi** (`aka`) &bull; Ghana, Togo
-- **Baoulé** (`bci`) &bull; Côte d'Ivoire
-- **Bassa** (`bsq`) &bull; Liberia, Sierra Leone
-- **Bini** (`bin`) &bull; Nigeria
-- **Dagbani** (`dag`) &bull; Ghana, Togo
-- **Dyula** (`dyu`) &bull; Côte d'Ivoire, Burkina Faso, Mali
-- **Efik** (`efi`) &bull; Nigeria, Cameroon
-- **Ewe** (`ewe`) &bull; Ghana, Togo
-- **Fanti** (`fat`) &bull; Ghana, Togo
-- **Fon** (`fon`) &bull; Benin, Togo
-- **Ga** (`gaa`) &bull; Ghana
-- **Gen** (`gej`) &bull; Togo, Benin
-- **Gun** (`guw`) &bull; Benin, Nigeria
-- **Igbo** (`ibo`) &bull; Nigeria
-- **Kabiyè** (`kbp`) &bull; Togo, Benin, Ghana
-- **Klao** (`klu`) &bull; Liberia, Sierra Leone
-- **Krio** (`kri`) &bull; Sierra Leone, The Gambia
-- **Kusaal** (`kus`) &bull; Ghana, Burkina Faso
-- **Maasina Fulfulde** (`ffm`) &bull; Mali, Ghana, Burkina Faso
-- **Mano** (`mev`) &bull; Liberia, Guinea, Côte d'Ivoire
-- **Nigerian Pidgin** (`pcm`) &bull; Nigeria
-- **Nzima** (`nzi`) &bull; Ghana, Côte d'Ivoire
-- **Susu** (`sus`) &bull; Guinea, Sierra Leone
-- **Tiv** (`tiv`) &bull; Nigeria, Cameroon
-- **Upper Guinea Crioulo** (`pov`) &bull; Guinea-Bissau, Senegal, The Gambia
-- **Urhobo** (`urh`) &bull; Nigeria
-- **Wolof** (`wol`) &bull; Senegal, The Gambia, Mauritania
-- **Yoruba** (`yor`) &bull; Nigeria, Benin
-
-### Southern Africa (15)
-- **Afrikaans** (`afr`) &bull; South Africa, Namibia, Botswana
-- **Chichewa** (`nya`) &bull; Malawi, Mozambique, Zambia, Zimbabwe
-- **Kaonde** (`kqn`) &bull; Zambia, DR Congo
-- **Kuanyama** (`kua`) &bull; Angola, Namibia
-- **Lozi** (`loz`) &bull; Zambia, Zimbabwe, Namibia, Botswana
-- **Ndonga** (`ndo`) &bull; Namibia, Angola
-- **North Ndebele** (`nde`) &bull; Zimbabwe, Botswana
-- **Pedi / Northern Sotho** (`nso`) &bull; South Africa, Botswana
-- **Shona** (`sna`) &bull; Zimbabwe, Mozambique, Botswana
-- **Southern Sotho** (`sot`) &bull; Lesotho, South Africa
-- **Tsonga** (`tso`) &bull; South Africa, Mozambique, Zimbabwe, Eswatini
-- **Tswana** (`tsn`) &bull; Botswana, South Africa, Zimbabwe, Namibia
-- **Tumbuka** (`tum`) &bull; Malawi, Zambia
-- **Venda** (`ven`) &bull; South Africa, Zimbabwe
-- **Xhosa** (`xho`) &bull; South Africa, Lesotho, Botswana
-
-### Central Africa (5)
-- **Lingala** (`lin`) &bull; DR Congo, Republic of the Congo, Central African Republic
-- **Luba-Lulua** (`lua`) &bull; DR Congo, Angola
-- **Northeastern Dinka** (`dip`) &bull; South Sudan, Sudan
-- **Sango** (`sag`) &bull; Central African Republic, Chad, DR Congo
-- **Southwestern Dinka** (`dik`) &bull; South Sudan, Sudan
-
-### Indian Ocean & Islands (3)
-- **Morisyen** (`mfe`) &bull; Mauritius
-- **Plateau Malagasy** (`plt`) &bull; Madagascar
-- **Seselwa Creole French** (`crs`) &bull; Seychelles
+- **East Africa (16):** Acoli (`ach`), Amharic (`amh`), Borana-Arsi-Guji Oromo (`gax`), Congo Swahili (`swc`), Digo (`dig`), Embu (`ebu`), Ganda (`lug`), Kikuyu (`kik`), Kinyarwanda (`kin`), Nyankole (`nyn`), Nyoro (`nyo`), Rundi (`run`), Somali (`som`), Swahili (`swh`), Tigrinya (`tir`), West Central Oromo (`gaz`).
+- **West Africa (30):** Abron (`abr`), Adangme (`ada`), Akan / Twi (`aka`), Baoulé (`bci`), Bassa (`bsq`), Bini (`bin`), Dagbani (`dag`), Dyula (`dyu`), Efik (`efi`), Ewe (`ewe`), Fanti (`fat`), Fon (`fon`), Ga (`gaa`), Gen (`gej`), Gun (`guw`), Igbo (`ibo`), Kabiyè (`kbp`), Klao (`klu`), Krio (`kri`), Kusaal (`kus`), Maasina Fulfulde (`ffm`), Mano (`mev`), Nigerian Pidgin (`pcm`), Nzima (`nzi`), Susu (`sus`), Tiv (`tiv`), Upper Guinea Crioulo (`pov`), Urhobo (`urh`), Wolof (`wol`), Yoruba (`yor`).
+- **Southern Africa (15):** Afrikaans (`afr`), Chichewa (`nya`), Kaonde (`kqn`), Kuanyama (`kua`), Lozi (`loz`), Ndonga (`ndo`), North Ndebele (`nde`), Pedi / Northern Sotho (`nso`), Shona (`sna`), Southern Sotho (`sot`), Tsonga (`tso`), Tswana (`tsn`), Tumbuka (`tum`), Venda (`ven`), Xhosa (`xho`).
+- **Central Africa (5):** Lingala (`lin`), Luba-Lulua (`lua`), Northeastern Dinka (`dip`), Sango (`sag`), Southwestern Dinka (`dik`).
+- **Indian Ocean & Islands (3):** Morisyen (`mfe`), Plateau Malagasy (`plt`), Seselwa Creole French (`crs`).
 
 The widget automatically loads and displays the latest available language catalogue when opened.
 
