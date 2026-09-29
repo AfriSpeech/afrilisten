@@ -10,20 +10,6 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 
 ---
 
-## Supported Languages
-
-AfriListen supports **51 African languages** powered by Google Translate and phoneticised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p) with real-time audio streamed through Gemini Live. Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
-
-- **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
-- **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
-- **Southern Africa (13):** Zulu (`zul`), Xhosa (`xho`), Afrikaans (`afr`), Shona (`sna`), Chichewa (`nya`), Tswana (`tsn`), Tsonga (`tso`), Pedi (`nso`), Southern Sotho (`sot`), Swati (`ssw`), Venda (`ven`), Tumbuka (`tum`), Ndau (`ndc`).
-- **Central Africa (7):** Lingala (`lin`), Sango (`sag`), Tshiluba (`lua`), Kituba (`ktu`), Dinka (`din`), Nuer (`nus`), Dombe (`dov`).
-- **Indian Ocean & Islands (3):** Malagasy (`mlg`), Mauritian Creole (`mfe`), Seychellois Creole (`crs`).
-
-The widget automatically loads and displays the latest available language catalogue when opened.
-
----
-
 ## Quick Start
 
 Paste this into the `<head>` or before the closing `</body>` tag of any web page:
@@ -40,12 +26,29 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 
 ---
 
+## Supported Languages
+
+AfriListen supports **51 African languages** powered by Google Translate and phoneticised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p) with real-time audio streamed through Gemini Live. Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+
+<details>
+<summary><strong>Click to view all 51 supported languages</strong></summary>
+
+- **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
+- **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
+- **Southern Africa (13):** Zulu (`zul`), Xhosa (`xho`), Afrikaans (`afr`), Shona (`sna`), Chichewa (`nya`), Tswana (`tsn`), Tsonga (`tso`), Pedi (`nso`), Southern Sotho (`sot`), Swati (`ssw`), Venda (`ven`), Tumbuka (`tum`), Ndau (`ndc`).
+- **Central Africa (7):** Lingala (`lin`), Sango (`sag`), Tshiluba (`lua`), Kituba (`ktu`), Dinka (`din`), Nuer (`nus`), Dombe (`dov`).
+- **Indian Ocean & Islands (3):** Malagasy (`mlg`), Mauritian Creole (`mfe`), Seychellois Creole (`crs`).
+
+</details>
+
+---
+
 ## Features
 
 - **51 Major African Languages**: Broad coverage including Swahili, Yoruba, Hausa, Amharic, Zulu, Igbo, Akan/Twi, Oromo, Somali, Wolof, Kinyarwanda, Xhosa, Shona, and more.
 - **High-Quality Translation**: Translated via Google Translate with a semantic Thai pivot (`source -> th -> target`) before audio generation.
 - **Phonetic IPA Transcription**: Converts African text into International Phonetic Alphabet (IPA) representations via `africa-g2p` so Gemini Live pronounces complex phonemes, clicks, tones, and special characters smoothly.
-- **Voice Selection**: Choose between multiple Gemini Live voices (`Kore`, `Charon`, `Puck`, `Fenrir`, `Aoede`) with persistent preferences and per-voice quality analytics.
+- **Voice Selection**: Choose between Gemini Live voices (`Zephyr`, `Puck`) with persistent preferences and per-voice quality analytics.
 - **Real-Time Streaming Playback**: Streams audio as packets arrive over WebSocket — the reader starts hearing speech in ~300ms without waiting for the full article to finish.
 - **Direct Browser Streaming**: Gemini Live speaks directly to the reader's browser — zero audio proxying through your server.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
@@ -78,7 +81,7 @@ You can customize the button's language, position, and label using `data-*` attr
 | Attribute | Default | Description |
 | :--- | :--- | :--- |
 | `data-lang` | *(picker)* | Pre-select a default language code (e.g. `swh` for Swahili, `yor` for Yoruba, `hau` for Hausa, `aka` for Akan). |
-| `data-voice` | `Kore` | Pre-select a default Gemini voice (`Kore`, `Charon`, `Puck`, `Fenrir`, or `Aoede`). |
+| `data-voice` | `Zephyr` | Pre-select a default Gemini voice (`Zephyr` or `Puck`). |
 | `data-position` | `bottom-right` | Position on the screen: `bottom-right` or `bottom-left`. |
 | `data-label` | `Listen` | Custom text for the button (e.g. `Listen`, `Soma`, `Kasa`). |
 | `data-endpoint` | *(shared default)* | Optional: URL of your own self-hosted backend. See [DEPLOY.md](DEPLOY.md). |
