@@ -12,7 +12,7 @@ export const LANGUAGE_DATA = {
   aar: { name: "Afar", google: "aa", countries: ["DJ","ER","ET"] },
   ach: { name: "Acoli", google: "ach", countries: ["SS","UG"] },
   afr: { name: "Afrikaans", google: "af", countries: ["BW","MZ","NA","ZA","ZM","ZW"] },
-  aka: { name: "Akan", google: "ak", countries: ["GH","TG"] },
+  aka: { name: "Twi", google: "ak", countries: ["GH","TG"] },
   alz: { name: "Alur", google: "alz", countries: ["CD","UG"] },
   amh: { name: "Amharic", google: "am", countries: ["DJ","ET"] },
   bam: { name: "Bambara", google: "bm", countries: ["CI","GN","ML","SN"] },

@@ -13,7 +13,7 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 AfriListen supports **51 African languages** powered by Google Translate and universalised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
 
 - **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
-- **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Akan / Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
+- **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
 - **Southern Africa (13):** Zulu (`zul`), Xhosa (`xho`), Afrikaans (`afr`), Shona (`sna`), Chichewa (`nya`), Tswana (`tsn`), Tsonga (`tso`), Pedi (`nso`), Southern Sotho (`sot`), Swati (`ssw`), Venda (`ven`), Tumbuka (`tum`), Ndau (`ndc`).
 - **Central Africa (7):** Lingala (`lin`), Sango (`sag`), Tshiluba (`lua`), Kituba (`ktu`), Dinka (`din`), Nuer (`nus`), Dombe (`dov`).
 - **Indian Ocean & Islands (3):** Malagasy (`mlg`), Mauritian Creole (`mfe`), Seychellois Creole (`crs`).

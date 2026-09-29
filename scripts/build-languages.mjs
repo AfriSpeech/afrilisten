@@ -136,9 +136,11 @@ if (table.has('swh')) {
   table.get('swh').countries = ['BI', 'KE', 'MZ', 'RW', 'SO', 'TZ', 'UG'];
 }
 if (table.has('aka')) {
+  table.get('aka').name = 'Twi';
   table.get('aka').countries = ['GH', 'TG'];
 }
 if (table.has('twi')) {
+  table.get('twi').name = 'Twi';
   table.get('twi').countries = ['GH', 'TG'];
 }
 
