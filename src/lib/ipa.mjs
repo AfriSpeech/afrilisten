@@ -28,13 +28,16 @@ except Exception:
 eng_g2p = None
 if africa_g2p:
     try:
-        eng_g2p = africa_g2p.EnglishG2P()
+        eng_g2p = africa_g2p.EnglishG2P('eng-gb')
     except Exception:
-        pass
+        try:
+            eng_g2p = africa_g2p.EnglishG2P()
+        except Exception:
+            pass
 
-# Load system English dictionary if available
+# Load British English dictionary if available, with fallbacks
 english_words = set()
-for path in ['/usr/share/dict/words', '/usr/share/dict/american-english', '/usr/share/dict/british-english']:
+for path in ['/usr/share/dict/british-english', '/usr/share/dict/words', '/usr/share/dict/american-english']:
     try:
         with open(path) as f:
             english_words = {line.strip().lower() for line in f if len(line.strip()) >= 3}

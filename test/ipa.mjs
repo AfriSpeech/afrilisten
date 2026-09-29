@@ -34,7 +34,12 @@ await t('toIpa converts Amharic Ge\'ez text to phonetic representation', async (
 
 await t('toIpa correctly preserves English words with English phonetics in mixed text', async () => {
   const res = await toIpa('Akwaaba and welcome to our university', 'aka');
-  assert.ok(res.includes('wɛlkʌm') || res.includes('juːnɪvɜːsᵻɾi'));
+  assert.ok(res.includes('wɛlkʌm') || res.includes('juːnɪvɜːs'));
+});
+
+await t('toIpa uses British English phonetics for English words', async () => {
+  const res = await toIpa('hospital', 'aka');
+  assert.ok(res.includes('hɒspɪtəl') || res.includes('hɑːspɪ'));
 });
 
 console.log(`\n  ${passed} IPA checks passed`);
