@@ -98,8 +98,8 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | Variable | Default | Range | What it does |
 | --- | --- | --- | --- |
 | `GEMINI_LIVE_MODEL` | `gemini-3.1-flash-live-preview` | | The one model. Locked into every token minted, and returned to the widget over `/languages` so it can connect with the same id. |
-| `GEMINI_TTS_VOICE` | `Charon` | | The voice. Also locked into every token. |
-| `LISTEN_MAX_CHARS` | `2500` | 200 to 5000 | Ceiling on how much of a page the widget reads. Sent to the browser over `/languages`; enforced there, since the service never sees the text to enforce it itself. |
+| `GEMINI_TTS_VOICE` | `Charon` | | The default voice (`Charon`, `Puck`, `Kore`, `Fenrir`, or `Aoede`). Locked into minted tokens. |
+| `LISTEN_MAX_CHARS` | `1000` | 200 to 5000 | Ceiling on how much of a page the widget reads. Sent to the browser over `/languages`; enforced there, and during server translation. |
 | `LISTEN_TTS_CHUNK_CHARS` | `250` | 40 to 250 | How big a piece the widget splits a page into. Gemini Live will not reliably hold a turn open past this. |
 | `LISTEN_TOKEN_USES_PER_PIECE` | `2` | 1 to 4 | How many Live sessions one piece is budgeted, headroom for one retry included. |
 | `LISTEN_TOKEN_MIN_USES` / `LISTEN_TOKEN_MAX_USES` | `4` / `40` | 1–20 / 1–100 | Floor and ceiling on a token's use count, regardless of the piece count a caller claims. |
@@ -354,8 +354,9 @@ content-type: application/json
 { "text": "The president addressed the nation today regarding economic policies.", "lang": "swh" }
 ```
 
-- `text`: Article text (the server automatically clips to the first 100 characters).
+- `text`: Article text (the server automatically clips to the configured limit, up to 1,000 characters by default).
 - `lang`: Target language code (e.g. `swh`, `yor`, `hau`, `aka`, `zul`).
+- `voice`: Optional voice choice (`Charon`, `Puck`, `Kore`, `Fenrir`, or `Aoede`; defaults to `Charon`).
 
 Response:
 ```json
@@ -364,7 +365,7 @@ Response:
   "model": "gemini-3.1-flash-live-preview",
   "voice": "Charon",
   "expireTime": "...",
-  "text": "chuo kikuu kilitangaza mpango mpya...",
+  "chunks": ["Chuo kikuu kilitangaza mpango mpya...", "..."],
   "originalTranslation": "Chuo kikuu kilitangaza mpango mpya...",
   "language": "Swahili",
   "languageCode": "swh"

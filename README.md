@@ -44,6 +44,7 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 
 - **51 Major African Languages**: Broad coverage including Swahili, Yoruba, Hausa, Amharic, Zulu, Igbo, Akan/Twi, Oromo, Somali, Wolof, Kinyarwanda, Xhosa, Shona, and more.
 - **High-Quality Translation**: Translated via Google Translate with a semantic Thai pivot (`source -> th -> target`) before audio generation.
+- **Voice Selection**: Choose between multiple Gemini Live voices (`Charon`, `Puck`, `Kore`, `Fenrir`, `Aoede`) with persistent preferences and per-voice quality analytics.
 - **Real-Time Streaming Playback**: Streams audio as packets arrive over WebSocket — the reader starts hearing speech in ~300ms without waiting for the full article to finish.
 - **Direct Browser Streaming**: Gemini Live speaks directly to the reader's browser — zero audio proxying through your server.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
@@ -76,6 +77,7 @@ You can customize the button's language, position, and label using `data-*` attr
 | Attribute | Default | Description |
 | :--- | :--- | :--- |
 | `data-lang` | *(picker)* | Pre-select a default language code (e.g. `swh` for Swahili, `yor` for Yoruba, `hau` for Hausa, `aka` for Akan). |
+| `data-voice` | `Charon` | Pre-select a default Gemini voice (`Charon`, `Puck`, `Kore`, `Fenrir`, or `Aoede`). |
 | `data-position` | `bottom-right` | Position on the screen: `bottom-right` or `bottom-left`. |
 | `data-label` | `Listen` | Custom text for the button (e.g. `Listen`, `Soma`, `Kasa`). |
 | `data-endpoint` | *(shared default)* | Optional: URL of your own self-hosted backend. See [DEPLOY.md](DEPLOY.md). |
