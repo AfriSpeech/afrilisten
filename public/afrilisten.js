@@ -480,9 +480,9 @@
 
   /**
    * Speak `text` in `lang`: translates the article and converts to IPA on the server,
-   * then streams native-sounding speech over a single Gemini Live session into audio/wav.
+   * then streams native-sounding speech over a single Gemini Live session.
    */
-  function buildAudio(text, lang, languageName, source, chosenVoice, sessionHolder) {
+  function buildAudio(text, lang, languageName, source, chosenVoice, audioCtx, onFirstAudio, sessionHolder) {
     return Promise.all([fetchToken(text, lang, source, chosenVoice), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
@@ -490,6 +490,8 @@
       var speechText = tokenInfo.ipa || (tokenInfo.chunks && tokenInfo.chunks[0]) || tokenInfo.text || text;
 
       var allPcmPieces = [];
+      var nextPlayTime = 0;
+      var activeSources = [];
       var currentSocketClose = null;
       var aborted = false;
 
@@ -500,7 +502,47 @@
             try { currentSocketClose(); } catch (e) {}
             currentSocketClose = null;
           }
+          activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+          activeSources = [];
         };
+      }
+
+      var leftoverByte = null;
+      function queuePcm(pcmBytes) {
+        if (!audioCtx || !pcmBytes || pcmBytes.length === 0 || aborted) return;
+        try {
+          var bytes = pcmBytes;
+          if (leftoverByte !== null) {
+            var combined = new Uint8Array(bytes.length + 1);
+            combined[0] = leftoverByte;
+            combined.set(bytes, 1);
+            bytes = combined;
+            leftoverByte = null;
+          }
+          if (bytes.length % 2 !== 0) {
+            leftoverByte = bytes[bytes.length - 1];
+            bytes = bytes.subarray(0, bytes.length - 1);
+          }
+          if (bytes.length < 2) return;
+
+          var int16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
+          var float32 = new Float32Array(int16.length);
+          for (var i = 0; i < int16.length; i += 1) {
+            float32[i] = int16[i] / 32768.0;
+          }
+          var audioBuf = audioCtx.createBuffer(1, float32.length, PCM_SAMPLE_RATE);
+          audioBuf.getChannelData(0).set(float32);
+
+          var src = audioCtx.createBufferSource();
+          src.buffer = audioBuf;
+          src.connect(audioCtx.destination);
+
+          var now = audioCtx.currentTime;
+          var start = Math.max(now, nextPlayTime);
+          src.start(start);
+          nextPlayTime = start + audioBuf.duration;
+          activeSources.push(src);
+        } catch (e) {}
       }
 
       var prompt = tokenInfo.isIpa
@@ -511,7 +553,8 @@
         if (aborted) return Promise.resolve(new Uint8Array(0));
         return speakChunkStreaming(genai, tokenInfo, prompt, function (pcm) {
           allPcmPieces.push(pcm);
-        }, null, function setSocketClose(closeFn) {
+          queuePcm(pcm);
+        }, onFirstAudio, function setSocketClose(closeFn) {
           currentSocketClose = closeFn;
         });
       }, PIECE_ATTEMPTS).then(function () {
@@ -519,15 +562,26 @@
         if (aborted) return null;
         var fullPcm = concatBytes(allPcmPieces);
         var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
-        return {
-          blob: blob,
-          meta: {
-            language: langName,
-            chars: (tokenInfo.text || text || '').length,
-            totalChars: (text || '').length,
-            truncated: false,
-          },
-        };
+        var remainingSec = audioCtx ? Math.max(0, nextPlayTime - audioCtx.currentTime) : 0;
+        return new Promise(function (resolve) {
+          setTimeout(function () {
+            if (aborted) { resolve(null); return; }
+            resolve({
+              blob: blob,
+              fromCache: false,
+              meta: {
+                language: langName,
+                chars: (tokenInfo.text || text || '').length,
+                totalChars: (text || '').length,
+                truncated: false,
+              },
+              stop: function () {
+                activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+                activeSources = [];
+              },
+            });
+          }, Math.ceil(remainingSec * 1000));
+        });
       });
     });
   }
@@ -551,6 +605,19 @@
     '.afs-listen__panel{margin-top:10px;background:#fff;border:1px solid #D4DAD6;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:14px;width:300px;max-width:calc(100vw - 40px)}',
     '.afs-listen__panel[hidden]{display:none}',
     '.afs-listen__audio{width:100%;margin:2px 0 8px}',
+    '.afs-listen__player{display:flex;align-items:center;gap:12px;background:#F4F7F5;border:1px solid #D4DAD6;border-radius:10px;padding:8px 12px;margin:4px 0 10px}',
+    '.afs-listen__play-btn{appearance:none;border:0;background:#52B788;color:#081C15;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}',
+    '.afs-listen__play-btn:hover{background:#37845F;color:#fff}',
+    '.afs-listen__play-btn svg{width:16px;height:16px;fill:currentColor}',
+    '.afs-listen__player-status{font-size:12px;font-weight:600;color:#2D6A4F}',
+    '.afs-listen__wave{display:inline-flex;align-items:flex-end;gap:3px;height:16px;flex-shrink:0}',
+    '.afs-listen__wave span{width:3px;background:#2D6A4F;border-radius:2px;animation:afs-wave 0.9s ease-in-out infinite}',
+    '.afs-listen__wave span:nth-child(1){height:6px;animation-delay:0.1s}',
+    '.afs-listen__wave span:nth-child(2){height:16px;animation-delay:0.3s}',
+    '.afs-listen__wave span:nth-child(3){height:10px;animation-delay:0.2s}',
+    '.afs-listen__wave span:nth-child(4){height:14px;animation-delay:0.4s}',
+    '.afs-listen__wave span:nth-child(5){height:8px;animation-delay:0.15s}',
+    '@keyframes afs-wave{0%,100%{height:4px}50%{height:16px}}',
     '.afs-listen__status{display:flex;align-items:center;gap:10px;padding:8px 0;margin:2px 0 6px}',
     '.afs-listen__status-text{font-size:13px;color:#2D6A4F;font-weight:600}',
     '.afs-listen__pulse{width:8px;height:8px;border-radius:50%;background:#52B788;animation:afs-pulse 1.2s ease-in-out infinite;flex-shrink:0}',
@@ -572,6 +639,14 @@
 
   function icon() {
     return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4zm12.5 3a3.5 3.5 0 0 0-2-3.15v6.3a3.5 3.5 0 0 0 2-3.15z"/></svg>';
+  }
+
+  function playIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  }
+
+  function pauseIcon() {
+    return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
   }
 
   /** The same thumb, flipped for "down" via a viewBox transform. */
@@ -664,14 +739,89 @@
       var languageName = chosen ? chosen.textContent : 'audio';
       var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Kore';
 
+      var AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      var audioCtx = null;
+      try {
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass({ sampleRate: PCM_SAMPLE_RATE });
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+      } catch (e) {}
+
       var currentSession = { stop: function () {} };
+      var ratedRating = null;
 
       function stopAndClose() {
         if (currentSession && currentSession.stop) currentSession.stop();
         var audioEl = panel.querySelector('audio');
         if (audioEl) { try { audioEl.pause(); audioEl.removeAttribute('src'); } catch (e) {} }
+        if (audioCtx && audioCtx.close) try { audioCtx.close(); } catch (e) {}
         panel.hidden = true;
         reset();
+      }
+
+      function renderLivePlayer() {
+        panel.innerHTML =
+          '<div class="afs-listen__head">' +
+            '<span class="afs-listen__lang">' + escapeHtml(languageName) + '</span>' +
+            '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button>' +
+          '</div>' +
+          '<div class="afs-listen__player">' +
+            '<button class="afs-listen__play-btn" type="button" aria-label="Pause">' + pauseIcon() + '</button>' +
+            '<div class="afs-listen__wave"><span></span><span></span><span></span><span></span><span></span></div>' +
+            '<span class="afs-listen__player-status">Playing live</span>' +
+          '</div>' +
+          '<div class="afs-listen__rate">' +
+            '<span class="afs-listen__rate-label">' + (ratedRating ? 'Thanks for the feedback!' : 'How did that sound?') + '</span>' +
+            '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="' + String(ratedRating === 'up') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(false) + '</button>' +
+            '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="' + String(ratedRating === 'down') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(true) + '</button>' +
+          '</div>' +
+          '<p class="afs-listen__note">Powered by ' +
+            '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
+
+        var closeBtn = panel.querySelector('.afs-listen__close');
+        if (closeBtn) closeBtn.addEventListener('click', stopAndClose);
+
+        var playBtn = panel.querySelector('.afs-listen__play-btn');
+        var waveEl = panel.querySelector('.afs-listen__wave');
+        var statusEl = panel.querySelector('.afs-listen__player-status');
+        if (playBtn && audioCtx) {
+          playBtn.addEventListener('click', function () {
+            if (audioCtx.state === 'running') {
+              audioCtx.suspend();
+              playBtn.innerHTML = playIcon();
+              playBtn.setAttribute('aria-label', 'Play');
+              if (waveEl) waveEl.style.opacity = '0.3';
+              if (statusEl) statusEl.textContent = 'Paused';
+            } else {
+              audioCtx.resume();
+              playBtn.innerHTML = pauseIcon();
+              playBtn.setAttribute('aria-label', 'Pause');
+              if (waveEl) waveEl.style.opacity = '1';
+              if (statusEl) statusEl.textContent = 'Playing live';
+            }
+          });
+        }
+
+        bindRatingButtons();
+      }
+
+      function bindRatingButtons() {
+        if (!ratedRating) {
+          var rateButtons = panel.querySelectorAll('.afs-listen__rate .afs-listen__rate-btn');
+          var rateLabel = panel.querySelector('.afs-listen__rate-label');
+          rateButtons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              ratedRating = btn.getAttribute('data-rating');
+              rateButtons.forEach(function (b) {
+                b.disabled = true;
+                b.setAttribute('aria-pressed', String(b === btn));
+              });
+              if (rateLabel) rateLabel.textContent = 'Thanks for the feedback!';
+              sendFeedback(select.value, ratedRating, chosenVoice);
+            });
+          });
+        }
       }
 
       function setStatus(text) {
@@ -706,9 +856,11 @@
             .catch(function () { return null; }) // no SubtleCrypto: skip the cache, not the reading
             .then(function (key) {
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
-                if (cached) return { blob: cached.blob, meta: cached.meta };
+                if (cached) return { blob: cached.blob, meta: cached.meta, fromCache: true };
 
-                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, currentSession).then(function (result) {
+                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, audioCtx, function onFirstAudio() {
+                  renderLivePlayer();
+                }, currentSession).then(function (result) {
                   if (!result) return null;
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
@@ -724,16 +876,17 @@
           var url = URL.createObjectURL(result.blob);
           var meta = result.meta;
           var langCode = select.value;
+          var autoplayAttr = result.fromCache ? ' autoplay' : '';
 
           panel.innerHTML =
             '<div class="afs-listen__head"><span class="afs-listen__lang">' +
               escapeHtml(meta.language || 'Audio') + '</span>' +
               '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button></div>' +
-            '<audio class="afs-listen__audio" controls autoplay src="' + url + '"></audio>' +
+            '<audio class="afs-listen__audio" controls' + autoplayAttr + ' src="' + url + '"></audio>' +
             '<div class="afs-listen__rate">' +
-              '<span class="afs-listen__rate-label">How did that sound?</span>' +
-              '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="false">' + thumbIcon(false) + '</button>' +
-              '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="false">' + thumbIcon(true) + '</button>' +
+              '<span class="afs-listen__rate-label">' + (ratedRating ? 'Thanks for the feedback!' : 'How did that sound?') + '</span>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="' + String(ratedRating === 'up') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(false) + '</button>' +
+              '<button class="afs-listen__rate-btn" type="button" data-rating="down" aria-label="Not good" aria-pressed="' + String(ratedRating === 'down') + '"' + (ratedRating ? ' disabled' : '') + '>' + thumbIcon(true) + '</button>' +
             '</div>' +
             '<p class="afs-listen__note">Powered by ' +
               '<a class="afs-listen__link" href="https://afrispeech.org" target="_blank" rel="noopener">AfriSpeech</a></p>';
@@ -741,19 +894,7 @@
           var close = panel.querySelector('.afs-listen__close');
           close.addEventListener('click', stopAndClose);
 
-          var rateButtons = panel.querySelectorAll('.afs-listen__rate .afs-listen__rate-btn');
-          var rateLabel = panel.querySelector('.afs-listen__rate-label');
-          rateButtons.forEach(function (btn) {
-            btn.addEventListener('click', function () {
-              rateButtons.forEach(function (b) {
-                b.disabled = true;
-                b.setAttribute('aria-pressed', String(b === btn));
-              });
-              rateLabel.textContent = 'Thanks for the feedback!';
-              sendFeedback(langCode, btn.getAttribute('data-rating'), chosenVoice);
-            });
-          });
-
+          bindRatingButtons();
           reset();
         })
         .catch(function (error) {
