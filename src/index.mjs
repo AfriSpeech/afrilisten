@@ -39,7 +39,7 @@ import { chunkBySentences } from './lib/chunk.mjs';
 import { toIpa } from './lib/ipa.mjs';
 import { config } from './lib/config.mjs';
 
-export const ALLOWED_VOICES = new Set(['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede']);
+export const ALLOWED_VOICES = new Set(['Zephyr', 'Puck', 'Kore', 'Charon', 'Fenrir', 'Aoede']);
 
 /* Shown to anyone integrating against this deployment. Two different
  * messages, because two different things are true depending on which
@@ -163,7 +163,7 @@ export default {
 
       const voice = (typeof body?.voice === 'string' && ALLOWED_VOICES.has(body.voice.trim()))
         ? body.voice.trim()
-        : (config.ttsVoice || 'Kore');
+        : (config.ttsVoice || 'Zephyr');
 
       await recordFeedback({ languageCode: language.code, rating: body.rating, voice });
       return Response.json({ ok: true }, { headers: cors });
@@ -258,7 +258,7 @@ export default {
       const uses = Math.max(config.tokenMinUses, 2);
 
       const requestedVoice = typeof body.voice === 'string' ? body.voice.trim() : '';
-      const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Kore');
+      const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Zephyr');
 
       let minted;
       try {

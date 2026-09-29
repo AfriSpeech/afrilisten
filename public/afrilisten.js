@@ -229,7 +229,7 @@
     return fetch(speechUrl('/token'), {
       method: 'POST',
       headers: speechHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ text: text, lang: lang, source: source || '', voice: voice || 'Kore', pieces: 1 }),
+      body: JSON.stringify({ text: text, lang: lang, source: source || '', voice: voice || 'Zephyr', pieces: 1 }),
     }).then(function (response) {
       if (!response.ok) return speechError(response, 'We could not start a session.');
       return response.json();
@@ -243,7 +243,7 @@
     return fetch(FEEDBACK_ENDPOINT + '/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ languageCode: languageCode, rating: rating, voice: voice || 'Kore' }),
+      body: JSON.stringify({ languageCode: languageCode, rating: rating, voice: voice || 'Zephyr' }),
     }).then(function (response) { return response.ok; }, function () { return false; });
   }
 
@@ -261,7 +261,7 @@
 
   function cacheKeyFor(text, languageCode, voice) {
     if (!window.crypto || !window.crypto.subtle) return Promise.reject(new Error('no SubtleCrypto'));
-    var bytes = new TextEncoder().encode((voice || 'Kore') + '\u0000' + languageCode + '\u0000' + text);
+    var bytes = new TextEncoder().encode((voice || 'Zephyr') + '\u0000' + languageCode + '\u0000' + text);
     return crypto.subtle.digest('SHA-256', bytes).then(function (digest) {
       var hex = '';
       var view = new Uint8Array(digest);
@@ -669,11 +669,8 @@
         '<button class="afs-listen__btn" type="button">' + icon() + '<span class="afs-listen__text">' + cfg.label + '</span></button>' +
         '<select class="afs-listen__sel" aria-label="Language"></select>' +
         '<select class="afs-listen__sel afs-listen__sel--voice" aria-label="Voice">' +
-          '<option value="Kore">Kore</option>' +
-          '<option value="Charon">Charon</option>' +
+          '<option value="Zephyr">Zephyr</option>' +
           '<option value="Puck">Puck</option>' +
-          '<option value="Fenrir">Fenrir</option>' +
-          '<option value="Aoede">Aoede</option>' +
         '</select>' +
       '</div>' +
       '<div class="afs-listen__panel" hidden></div>';
@@ -685,7 +682,7 @@
 
     var savedVoice = '';
     try { savedVoice = localStorage.getItem('afrilisten.voice') || ''; } catch (e) {}
-    var currentVoice = savedVoice || script.dataset.voice || 'Kore';
+    var currentVoice = savedVoice || script.dataset.voice || 'Zephyr';
     if (selectVoice) {
       selectVoice.value = currentVoice;
       selectVoice.addEventListener('change', function () {
@@ -737,7 +734,7 @@
 
       var chosen = select.options[select.selectedIndex];
       var languageName = chosen ? chosen.textContent : 'audio';
-      var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Kore';
+      var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Zephyr';
 
       var AudioContextClass = window.AudioContext || window.webkitAudioContext;
       var audioCtx = null;
