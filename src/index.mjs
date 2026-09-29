@@ -36,6 +36,7 @@ import { recordFeedback, feedbackReport, renderFeedbackPage } from './lib/feedba
 import { languageCatalogue, findSpeechLanguage, scopedLanguages, OFFERED_LANGUAGES } from './lib/languages.mjs';
 import { translateViaThai, clipToLimit } from './lib/translate.mjs';
 import { chunkBySentences } from './lib/chunk.mjs';
+import { toIpa } from './lib/ipa.mjs';
 import { config } from './lib/config.mjs';
 
 export const ALLOWED_VOICES = new Set(['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede']);
@@ -162,7 +163,7 @@ export default {
 
       const voice = (typeof body?.voice === 'string' && ALLOWED_VOICES.has(body.voice.trim()))
         ? body.voice.trim()
-        : (config.ttsVoice || 'Charon');
+        : (config.ttsVoice || 'Kore');
 
       await recordFeedback({ languageCode: language.code, rating: body.rating, voice });
       return Response.json({ ok: true }, { headers: cors });
@@ -251,11 +252,15 @@ export default {
       }
       if (!chunks.length && originalTranslation) chunks = [originalTranslation];
 
+      if (chunks.length && targetLang?.code) {
+        chunks = await Promise.all(chunks.map((c) => toIpa(c, targetLang.code)));
+      }
+
       const pieces = Math.max(1, Math.min(40, chunks.length || Number.parseInt(body.pieces, 10) || 1));
       const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
 
       const requestedVoice = typeof body.voice === 'string' ? body.voice.trim() : '';
-      const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Charon');
+      const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Kore');
 
       let minted;
       try {
@@ -278,6 +283,7 @@ export default {
           expireTime: minted.expireTime,
           uses,
           chunks,
+          isIpa: true,
           text: originalTranslation,
           language: targetLang?.name || 'Swahili',
           languageCode: targetLang?.code || 'swh',

@@ -6,7 +6,7 @@ point the website widget at it. The service itself is described in
 
 ## What this actually is
 
-A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the article via Google Translate (using a semantic Thai pivot `source -> th -> target`), chunks the translated text along sentence boundaries, and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to stream real-time audio.
+A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the article via Google Translate (using a semantic Thai pivot `source -> th -> target`), chunks the translated text along sentence boundaries, converts each piece to IPA phonetics with [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to stream real-time audio.
 
 That makes this fast and simple: there is no audio pipeline or audio transcoding on the server, no long-lived WebSocket connections through your server, and no audio bandwidth overhead.
 
@@ -98,7 +98,7 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | Variable | Default | Range | What it does |
 | --- | --- | --- | --- |
 | `GEMINI_LIVE_MODEL` | `gemini-3.1-flash-live-preview` | | The one model. Locked into every token minted, and returned to the widget over `/languages` so it can connect with the same id. |
-| `GEMINI_TTS_VOICE` | `Charon` | | The default voice (`Charon`, `Puck`, `Kore`, `Fenrir`, or `Aoede`). Locked into minted tokens. |
+| `GEMINI_TTS_VOICE` | `Kore` | | The default voice (`Kore`, `Charon`, `Puck`, `Fenrir`, or `Aoede`). Locked into minted tokens. |
 | `LISTEN_MAX_CHARS` | `1000` | 200 to 5000 | Ceiling on how much of a page the widget reads. Sent to the browser over `/languages`; enforced there, and during server translation. |
 | `LISTEN_TTS_CHUNK_CHARS` | `250` | 40 to 250 | How big a piece the widget splits a page into. Gemini Live will not reliably hold a turn open past this. |
 | `LISTEN_TOKEN_USES_PER_PIECE` | `2` | 1 to 4 | How many Live sessions one piece is budgeted, headroom for one retry included. |
@@ -372,7 +372,7 @@ Response:
 }
 ```
 
-The server translates the text via Thai pivot (`source -> th -> target`), chunks the translated text along sentence boundaries, and returns the chunks alongside a short-lived ephemeral token.
+The server translates the text via Thai pivot (`source -> th -> target`), chunks the translated text along sentence boundaries, converts each piece to IPA phonetics via `africa-g2p`, and returns the IPA chunks alongside a short-lived ephemeral token.
 
 ### 3. Stream audio from Gemini Live in the browser
 

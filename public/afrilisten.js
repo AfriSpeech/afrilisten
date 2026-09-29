@@ -229,7 +229,7 @@
     return fetch(speechUrl('/token'), {
       method: 'POST',
       headers: speechHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ text: text, lang: lang, source: source || '', voice: voice || 'Charon', pieces: 1 }),
+      body: JSON.stringify({ text: text, lang: lang, source: source || '', voice: voice || 'Kore', pieces: 1 }),
     }).then(function (response) {
       if (!response.ok) return speechError(response, 'We could not start a session.');
       return response.json();
@@ -243,7 +243,7 @@
     return fetch(FEEDBACK_ENDPOINT + '/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ languageCode: languageCode, rating: rating, voice: voice || 'Charon' }),
+      body: JSON.stringify({ languageCode: languageCode, rating: rating, voice: voice || 'Kore' }),
     }).then(function (response) { return response.ok; }, function () { return false; });
   }
 
@@ -261,7 +261,7 @@
 
   function cacheKeyFor(text, languageCode, voice) {
     if (!window.crypto || !window.crypto.subtle) return Promise.reject(new Error('no SubtleCrypto'));
-    var bytes = new TextEncoder().encode((voice || 'Charon') + '\u0000' + languageCode + '\u0000' + text);
+    var bytes = new TextEncoder().encode((voice || 'Kore') + '\u0000' + languageCode + '\u0000' + text);
     return crypto.subtle.digest('SHA-256', bytes).then(function (digest) {
       var hex = '';
       var view = new Uint8Array(digest);
@@ -570,7 +570,9 @@
         }
 
         var pieceText = chunks[idx];
-        var prompt = 'Pronounce the following text in ' + langName + ':\n\n' + pieceText;
+        var prompt = tokenInfo.isIpa
+          ? 'Pronounce the following IPA in ' + langName + ':\n\n' + pieceText
+          : 'Pronounce the following text in ' + langName + ':\n\n' + pieceText;
 
         return withRetry(function () {
           if (aborted) return Promise.resolve(new Uint8Array(0));
@@ -665,9 +667,9 @@
         '<button class="afs-listen__btn" type="button">' + icon() + '<span class="afs-listen__text">' + cfg.label + '</span></button>' +
         '<select class="afs-listen__sel" aria-label="Language"></select>' +
         '<select class="afs-listen__sel afs-listen__sel--voice" aria-label="Voice">' +
+          '<option value="Kore">Kore</option>' +
           '<option value="Charon">Charon</option>' +
           '<option value="Puck">Puck</option>' +
-          '<option value="Kore">Kore</option>' +
           '<option value="Fenrir">Fenrir</option>' +
           '<option value="Aoede">Aoede</option>' +
         '</select>' +
@@ -681,7 +683,7 @@
 
     var savedVoice = '';
     try { savedVoice = localStorage.getItem('afrilisten.voice') || ''; } catch (e) {}
-    var currentVoice = savedVoice || script.dataset.voice || 'Charon';
+    var currentVoice = savedVoice || script.dataset.voice || 'Kore';
     if (selectVoice) {
       selectVoice.value = currentVoice;
       selectVoice.addEventListener('change', function () {
@@ -733,7 +735,7 @@
 
       var chosen = select.options[select.selectedIndex];
       var languageName = chosen ? chosen.textContent : 'audio';
-      var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Charon';
+      var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Kore';
 
       var AudioContextClass = window.AudioContext || window.webkitAudioContext;
       var audioCtx = null;

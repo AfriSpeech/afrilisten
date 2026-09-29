@@ -2,7 +2,7 @@
 
 A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **51 African languages**.
 
-**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the text via Google Translate (using a semantic Thai pivot), chunks it along sentence boundaries, and streams native-sounding speech in real time via Gemini Live. It works just as seamlessly on sites already written in an African language.
+**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.):** your site does not need to be in an African language. AfriListen translates the text via Google Translate (using a semantic Thai pivot), chunks it along sentence boundaries, converts it to IPA phonetics via [africa-g2p](https://github.com/AfriSpeech/africa-g2p), and streams native-sounding speech in real time via Gemini Live. It works just as seamlessly on sites already written in an African language.
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 
@@ -12,7 +12,7 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 
 ## Supported Languages
 
-AfriListen supports **51 African languages** powered by Google Translate with real-time audio streamed through Gemini Live. Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+AfriListen supports **51 African languages** powered by Google Translate and phoneticised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p) with real-time audio streamed through Gemini Live. Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
 
 - **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
 - **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
@@ -44,7 +44,8 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 
 - **51 Major African Languages**: Broad coverage including Swahili, Yoruba, Hausa, Amharic, Zulu, Igbo, Akan/Twi, Oromo, Somali, Wolof, Kinyarwanda, Xhosa, Shona, and more.
 - **High-Quality Translation**: Translated via Google Translate with a semantic Thai pivot (`source -> th -> target`) before audio generation.
-- **Voice Selection**: Choose between multiple Gemini Live voices (`Charon`, `Puck`, `Kore`, `Fenrir`, `Aoede`) with persistent preferences and per-voice quality analytics.
+- **Phonetic IPA Transcription**: Converts African text into International Phonetic Alphabet (IPA) representations via `africa-g2p` so Gemini Live pronounces complex phonemes, clicks, tones, and special characters smoothly.
+- **Voice Selection**: Choose between multiple Gemini Live voices (`Kore`, `Charon`, `Puck`, `Fenrir`, `Aoede`) with persistent preferences and per-voice quality analytics.
 - **Real-Time Streaming Playback**: Streams audio as packets arrive over WebSocket — the reader starts hearing speech in ~300ms without waiting for the full article to finish.
 - **Direct Browser Streaming**: Gemini Live speaks directly to the reader's browser — zero audio proxying through your server.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
@@ -77,7 +78,7 @@ You can customize the button's language, position, and label using `data-*` attr
 | Attribute | Default | Description |
 | :--- | :--- | :--- |
 | `data-lang` | *(picker)* | Pre-select a default language code (e.g. `swh` for Swahili, `yor` for Yoruba, `hau` for Hausa, `aka` for Akan). |
-| `data-voice` | `Charon` | Pre-select a default Gemini voice (`Charon`, `Puck`, `Kore`, `Fenrir`, or `Aoede`). |
+| `data-voice` | `Kore` | Pre-select a default Gemini voice (`Kore`, `Charon`, `Puck`, `Fenrir`, or `Aoede`). |
 | `data-position` | `bottom-right` | Position on the screen: `bottom-right` or `bottom-left`. |
 | `data-label` | `Listen` | Custom text for the button (e.g. `Listen`, `Soma`, `Kasa`). |
 | `data-endpoint` | *(shared default)* | Optional: URL of your own self-hosted backend. See [DEPLOY.md](DEPLOY.md). |

@@ -31,9 +31,9 @@ function dirFor(languageCode) {
  * @param {object} options
  * @param {string} options.languageCode an AfriSpeech code, e.g. "swh"
  * @param {"up"|"down"} options.rating
- * @param {string} [options.voice="Charon"]
+ * @param {string} [options.voice="Kore"]
  */
-export async function recordFeedback({ languageCode, rating, voice = 'Charon' }) {
+export async function recordFeedback({ languageCode, rating, voice = 'Kore' }) {
   const dir = dirFor(languageCode);
   await mkdir(dir, { recursive: true });
   const file = path.join(dir, `${Date.now()}-${randomUUID()}.json`);
@@ -66,7 +66,7 @@ export async function feedbackReport() {
         .then((text) => JSON.parse(text))
         .catch(() => null);
       if (!parsed) continue; // a file half-written when read loses one vote, not the count
-      const v = parsed.voice || 'Charon';
+      const v = parsed.voice || 'Kore';
       if (!voices[v]) voices[v] = { up: 0, down: 0, total: 0, upRate: null };
 
       if (parsed.rating === 'up') {

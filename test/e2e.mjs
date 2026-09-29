@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { GoogleGenAI, Modality } from '@google/genai';
 import { mintToken } from '../src/lib/tokens.mjs';
 import { translateViaThai } from '../src/lib/translate.mjs';
+import { toIpa } from '../src/lib/ipa.mjs';
 import { config } from '../src/lib/config.mjs';
 
 if (!process.env.GEMINI_API_KEY) {
@@ -98,12 +99,13 @@ function speakWithToken(token, text, instruction) {
 }
 
 const trans = await translateViaThai('The weather today is sunny and warm.', 'sw', 'en');
-console.log(`  translation: "${trans.text}"\n`);
+const ipa = await toIpa(trans.text, 'swh');
+console.log(`  translation: "${trans.text}" -> IPA: "${ipa}"\n`);
 
 const pcm = await speakWithToken(
   minted.token,
-  trans.text,
-  'Pronounce the following text in Swahili:',
+  ipa,
+  'Pronounce the following IPA in Swahili:',
 );
 
 await t('the token alone, with no API key in sight, produced real audio', () => {
