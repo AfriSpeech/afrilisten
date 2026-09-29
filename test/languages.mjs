@@ -60,17 +60,17 @@ t('a country default wins over the language half of the locale', () => {
   // whatever the language half of the locale said.
   assert.equal(defaultForLocale('en-KE'), 'swh');
   assert.equal(defaultForLocale('sw-KE'), 'swh');
-  // Somali is mapped, so Somalia and Djibouti have a default of their own.
-  const somali = findSpeechLanguage('som');
-  assert.equal(somali.google, 'so', 'Somali must be mapped for DJ and SO to have a default');
-  assert.equal(defaultForLocale('so-SO'), 'som');
+  // Amharic is mapped, so Ethiopia has a default of its own.
+  const amharic = findSpeechLanguage('amh');
+  assert.equal(amharic.google, 'am', 'Amharic must be mapped for ET to have a default');
+  assert.equal(defaultForLocale('am-ET'), 'amh');
   // A country with no default of its own keeps the language half.
   assert.equal(defaultForLocale('fr-FR'), 'en');
 });
 
 t('a locale is read as the country it names', () => {
-  // Zulu is now offerable, so a South African browser is offered Zulu.
-  assert.equal(defaultForLocale('zu-ZA'), 'zul');
+  // Southern Sotho is mapped, so a South African browser is offered Southern Sotho.
+  assert.equal(defaultForLocale('st-ZA'), 'sot');
   assert.equal(defaultForLocale('sw-TZ'), 'swh');
   // Nothing recognisable, or nothing at all, falls back rather than failing.
   assert.equal(defaultForLocale('xx-XX'), 'en');
@@ -85,7 +85,7 @@ t('every language in the table is offered', () => {
   const notOffered = SPEECH_LANGUAGES.filter((l) => !l.tts);
   assert.deepEqual(notOffered.map((l) => l.name), [],
     `held back: ${notOffered.map((l) => l.name).join(', ')}`);
-  assert.ok(OFFERED_LANGUAGES.length >= 40, `only ${OFFERED_LANGUAGES.length} offered`);
+  assert.ok(OFFERED_LANGUAGES.length >= 35, `only ${OFFERED_LANGUAGES.length} offered`);
 });
 
 t('a language can be pulled out without touching the code', () => {

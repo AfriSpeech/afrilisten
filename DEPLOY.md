@@ -116,7 +116,7 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | `LISTEN_BUDGET_PER_DAY` | `5000` | 0 to 1000000 | Tokens minted across everyone, per day. The per-address limits are all bypassed by rotating address; this is the one that is not. 0 removes the cap. This project's own reference deployment sets it to `10000`, since it is the shared default every widget with no `data-endpoint` uses. |
 | `LISTEN_HELD_BACK_LANGUAGES` | empty | | Comma separated codes to hide from the picker. |
 | `LISTEN_LANGUAGES` | empty (everything) | | Comma separated AfriSpeech codes to offer, e.g. `yor,swh,hau`. Combines with `LISTEN_COUNTRIES` as a union, not a filter on top of it. |
-| `LISTEN_COUNTRIES` | empty (everything) | | Comma separated ISO alpha-2 country codes; every language attributed to any of them is offered, e.g. `NG,GH,KE`. Leaving both this and `LISTEN_LANGUAGES` unset offers all 457. |
+| `LISTEN_COUNTRIES` | empty (everything) | | Comma separated ISO alpha-2 country codes; every language attributed to any of them is offered, e.g. `NG,GH,KE`. Leaving both this and `LISTEN_LANGUAGES` unset offers all qualified languages. |
 | `LISTEN_SHARED_DEFAULT` | unset | `1` or unset | Set only on this project's own reference deployment (see `modal_app.py`). Changes the `/languages` usage notice to say this is deliberately the shared, unvetted-per-site default, rather than the opposite. Leave unset on your own deployment. |
 
 Full list with defaults in [`.env.example`](.env.example).
@@ -172,7 +172,7 @@ afrilisten` tails the running container.
 
 ### Choosing which languages to offer
 
-By default this offers all 457 languages the benchmark clears (see
+By default this offers all languages the benchmark clears (see
 README.md). To narrow that, add `LISTEN_LANGUAGES` and/or `LISTEN_COUNTRIES`
 to the secret (or as plain environment variables in `modal_app.py` if they
 are not sensitive for your deployment):
@@ -294,7 +294,7 @@ Put a reverse proxy or platform load balancer in front of it for TLS, and set
 ## Verifying a deployment
 
 ```sh
-# 457 languages, plus the speech settings the widget needs
+# The language list, plus the speech settings the widget needs
 curl -s https://<host>/languages | head -c 200
 
 # no key is refused
@@ -464,7 +464,7 @@ npm run test:e2e          # real Gemini: mints a token and speaks with it
 | `src/lib/feedback.mjs` | Records and reports per-language thumbs up/down ratings. |
 | `src/lib/auth.mjs` | The shared key and the origin allowlist. |
 | `src/lib/ratelimit.mjs` | Per-address and shared-budget limits on minting. |
-| `src/lib/languages.mjs` | The language catalogue (457, benchmark-selected -- see README.md) and `scopedLanguages()`, which a deployer's `LISTEN_LANGUAGES`/`LISTEN_COUNTRIES` narrows. |
+| `src/lib/languages.mjs` | The language catalogue (benchmark-selected -- see README.md) and `scopedLanguages()`, which a deployer's `LISTEN_LANGUAGES`/`LISTEN_COUNTRIES` narrows. |
 | `scripts/build-languages.mjs` | Regenerates the language table from gemini-word-mt-bench and afriso. |
 | `test/` | One file per area, each runnable on its own. |
 | `public/afrilisten.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |

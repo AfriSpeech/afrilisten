@@ -107,11 +107,12 @@ for (const row of rows) {
 }
 console.log(`afriso: ${afriso.size} languages.`);
 
+const MIN_SCORE = 40.0;
 const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
 const qualifying = summary.languages.filter(
-  (l) => (l.tier === 'medium' || l.tier === 'strong') && !EXCLUDE.has(l.iso639_3),
+  (l) => (l.score >= MIN_SCORE || l.score_core >= MIN_SCORE) && !EXCLUDE.has(l.iso639_3),
 );
-console.log(`bench: ${summary.languages.length} scored, ${qualifying.length} at medium tier or better after exclusions.`);
+console.log(`bench: ${summary.languages.length} scored, ${qualifying.length} at >= 40% after exclusions.`);
 
 const speechDataPath = path.join(root, 'src', 'lib', 'speech-data.mjs');
 const existingSource = fs.readFileSync(speechDataPath, 'utf8');
@@ -132,21 +133,16 @@ for (const lang of qualifying) {
   });
 }
 
-// The 4 currently-offered languages the benchmark scored below medium tier
-// (Baoulé, Dinka, Nuer, Tiv) are deliberately not carried forward: the whole
-// point of this table is that the benchmark decides what clears the bar,
-// existing entries included. A language missing from the benchmark entirely
-// (an afriso attribution gap, not a quality signal -- Bemba, Luo, Swahili)
-// is not evidence of anything and is kept as-is.
-for (const [code, google] of existingGoogle) {
-  if (table.has(code)) continue;
-  const stillScored = summary.languages.find((l) => l.iso639_3 === code);
-  if (stillScored) continue; // scored and didn't qualify: drop it
-  const match = existingSource.match(new RegExp(`^\\s*${code}: (\\{[^}]*\\}),?$`, 'm'));
-  if (match) {
-    const kept = new Function(`return ${match[1]}`)();
-    table.set(code, kept);
-  }
+// Swahili: Congo Swahili (swc) scored 60.78% in the benchmark. Ensure standard
+// Swahili (swh) is also present with its pan-East-African country coverage,
+// sharing the same "sw" provider code so existing integrations and country defaults resolve.
+if (table.has('swc') && !table.has('swh')) {
+  const swhInfo = afriso.get('swh');
+  table.set('swh', {
+    name: (swhInfo && swhInfo.name) || 'Swahili',
+    google: 'sw',
+    countries: (swhInfo && swhInfo.countries.length) ? swhInfo.countries : ['BI','KE','MZ','RW','SO','TZ','UG'],
+  });
 }
 
 console.log(`No afriso entry for ${noAfrisoEntry} benchmark languages (skipped).`);

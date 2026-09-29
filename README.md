@@ -1,6 +1,6 @@
 # AfriListen
 
-A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **457 African languages**.
+A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **38 high-resource African languages**.
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 
@@ -24,7 +24,7 @@ By default, the widget connects to AfriListen's shared community service — no 
 
 ## Features
 
-- **450+ African Languages**: Broad coverage across the continent, including Swahili, Yoruba, Amharic, Zulu, Hausa, Akan (Twi/Fante), Igbo, Somali, Oromo, Lingala, Wolof, and hundreds more.
+- **38 High-Scoring African Languages**: Quality-vetted languages scoring 40%+ on the corpus benchmark, including Swahili, Yoruba, Amharic, Lingala, Afrikaans, Ewe, Akan, Igbo, Wolof, Kinyarwanda, Shona, and more.
 - **Direct Browser Synthesis**: Gemini Live translates and speaks directly in the reader's browser — your website server handles zero audio bandwidth.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
 - **Reader Feedback**: Built-in thumbs up/down rating buttons let readers rate translation and speech quality, helping improve African language support.
@@ -58,16 +58,15 @@ You can customize the button's language, position, and label using `data-*` attr
 
 ## Supported Languages
 
-AfriListen supports **457 African languages** qualified through benchmark evaluations ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)).
+AfriListen supports **38 African languages** that score **40% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)).
 
-Popular supported languages include:
+Supported languages include:
 
-- **East Africa**: Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Luganda (`lug`)
-- **West Africa**: Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Akan / Twi / Fante (`aka`), Wolof (`wol`), Ewe (`ewe`), Fulah (`ful`)
-- **Southern Africa**: Zulu (`zul`), Xhosa (`xho`), Shona (`sna`), Afrikaans (`afr`), Sesotho (`sot`), Chichewa (`nya`)
-- **Central Africa**: Lingala (`lin`), Sango (`sag`), Kongo (`kon`), Cameroon Pidgin (`wes`)
-- **Islands**: Malagasy (`mlg`), Seselwa Creole (`crs`), Mauritian Creole (`mfe`)
-- *...and over 400 additional indigenous and regional languages.*
+- **East Africa**: Swahili (`swh`, `swc`), Amharic (`amh`), West Central Oromo (`gaz`), Tigrinya (`tir`), Kinyarwanda (`kin`), Ganda (`lug`), Kikuyu (`kik`), Acoli (`ach`)
+- **West Africa**: Yoruba (`yor`), Igbo (`ibo`), Ewe (`ewe`), Akan / Fanti / Twi (`aka`, `fat`, `twi`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Adangme (`ada`), Efik (`efi`), Krio (`kri`), Nigerian Pidgin (`pcm`), Susu (`sus`), Mano (`mev`), Bassa (`bsq`)
+- **Southern Africa**: Afrikaans (`afr`), Shona (`sna`), Southern Sotho (`sot`), Tswana (`tsn`), Tsonga (`tso`), Pedi (`nso`), Chichewa (`nya`), Lozi (`loz`), Ndonga (`ndo`)
+- **Central Africa**: Lingala (`lin`), Sango (`sag`)
+- **Islands**: Plateau Malagasy (`plt`), Seselwa Creole (`crs`), Morisyen (`mfe`)
 
 The widget automatically loads and displays the latest available language catalogue when opened.
 
