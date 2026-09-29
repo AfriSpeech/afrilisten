@@ -677,6 +677,7 @@
 
       var chosen = select.options[select.selectedIndex];
       var languageName = chosen ? chosen.textContent : 'audio';
+      var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Charon';
 
       var AudioContextClass = window.AudioContext || window.webkitAudioContext;
       var audioCtx = null;
@@ -724,7 +725,6 @@
       readThisPage()
         .then(function (page) {
           var langCode = select.value;
-          var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Charon';
           var pageLang = (document.documentElement.lang || (document.body && document.body.getAttribute('lang')) || '')
             .toLowerCase().split('-')[0].trim();
 
