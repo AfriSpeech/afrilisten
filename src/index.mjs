@@ -233,10 +233,10 @@ export default {
       let chunks = [];
 
       if (body.text && typeof body.text === 'string' && body.text.trim()) {
-        const clipped = clipToLimit(body.text, config.maxChars || 1000);
+        const clipped = clipToLimit(body.text, config.maxChars || 2500);
         try {
           // If source matches target or is detected as target, translateViaThai skips the Thai hop
-          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle);
+          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle, config.maxChars || 2500);
           originalTranslation = trans.text || clipped;
         } catch {
           originalTranslation = clipped;

@@ -25,18 +25,18 @@ export const config = {
   // number being baked into the widget file. The whole cap is translated and
   // spoken, so a larger figure is a longer recording and a larger bill rather
   // than a better one.
-  maxChars: clampInt('LISTEN_MAX_CHARS', process.env.LISTEN_MAX_CHARS, 200, 1000, 1000),
+  maxChars: clampInt('LISTEN_MAX_CHARS', process.env.LISTEN_MAX_CHARS, 200, 5000, 2500),
   // Gemini Live will not hold a turn open long enough for a whole article, or
   // reliably for a piece much past this size, so the text is split into
   // pieces of at most this many characters.
-  chunkChars: clampInt('LISTEN_TTS_CHUNK_CHARS', process.env.LISTEN_TTS_CHUNK_CHARS, 40, 250, 250),
+  chunkChars: clampInt('LISTEN_TTS_CHUNK_CHARS', process.env.LISTEN_TTS_CHUNK_CHARS, 40, 250, 200),
 
   // How many Live sessions a minted token may start. Sized per piece with
   // headroom for one retry each, and clamped either side so a page with an
   // implausible piece count cannot mint a token good for hundreds of turns.
   tokenUsesPerPiece: clampInt('LISTEN_TOKEN_USES_PER_PIECE', process.env.LISTEN_TOKEN_USES_PER_PIECE, 1, 4, 2),
   tokenMinUses: clampInt('LISTEN_TOKEN_MIN_USES', process.env.LISTEN_TOKEN_MIN_USES, 1, 20, 4),
-  tokenMaxUses: clampInt('LISTEN_TOKEN_MAX_USES', process.env.LISTEN_TOKEN_MAX_USES, 1, 100, 40),
+  tokenMaxUses: clampInt('LISTEN_TOKEN_MAX_USES', process.env.LISTEN_TOKEN_MAX_USES, 1, 100, 60),
   // How long a token may be used to send messages, and how long the browser
   // has to start its Live sessions with it. The first has to outlast the
   // second: sessions are opened once, near the start of that window.

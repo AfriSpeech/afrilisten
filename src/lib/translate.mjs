@@ -89,7 +89,7 @@ export async function singleTranslate(text, sl, tl, timeoutMs = 6000) {
  * @param {string} [sourceLang="auto"]
  * @returns {Promise<{text: string, detected: string|null, translated: boolean}>}
  */
-export async function translateViaThai(text, targetCode, sourceLang = 'auto', maxChars = 2000) {
+export async function translateViaThai(text, targetCode, sourceLang = 'auto', maxChars = 3000) {
   if (!text || !targetCode) return { text: text || '', detected: null, translated: false };
   const clean = String(text || '').slice(0, maxChars).trim();
 
