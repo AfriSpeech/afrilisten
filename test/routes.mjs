@@ -150,7 +150,7 @@ await check('GET /feedback returns the HTML performance dashboard', async () => 
   assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
   const text = await response.text();
   assert.ok(text.includes('<!DOCTYPE html>'), 'should return HTML document');
-  assert.ok(text.includes('AfriListen Performance'), 'should have dashboard title');
+  assert.ok(text.includes('Language Evaluation Benchmark'), 'should have dashboard title');
 });
 
 await check('GET /feedback/report with Accept text/html returns the HTML dashboard', async () => {
