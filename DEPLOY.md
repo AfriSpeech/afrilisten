@@ -141,7 +141,7 @@ modal deploy modal_app.py
 ```
 
 The deploy prints the public URL, of the form
-`https://<your-modal-username>--afrispeech-listen-serve.modal.run`. That is
+`https://<your-modal-username>--afrilisten-serve.modal.run`. That is
 `PUBLIC_LISTEN_ENDPOINT` for the website (see below).
 
 `modal_app.py` also creates a Modal Volume (`afrispeech-listen-feedback`) on
@@ -152,7 +152,7 @@ one container's disk. See [Feedback](#feedback) below.
 To change a setting, update the secret (`modal secret create ... ` again
 recreates it) or add a plain environment variable to the image in
 `modal_app.py`, then `modal deploy modal_app.py` again. `modal app logs
-afrispeech-listen` tails the running container.
+afrilisten` tails the running container.
 
 ### Choosing which languages to offer
 
@@ -181,7 +181,7 @@ from the same endpoint.
 
 Feedback is pooled across every deployment, not per-deployer: the widget's
 thumbs up/down always reports to this project's own reference deployment
-(`FEEDBACK_ENDPOINT` in `public/afrispeech-listen.js`), regardless of which
+(`FEEDBACK_ENDPOINT` in `public/afrilisten.js`), regardless of which
 token service a given site configured for translation and speech. A rating
 is a signal about how well Gemini translates into a language in general, not
 something specific to one deployer's readers, so there is one pool rather
@@ -192,7 +192,7 @@ already live for anyone using the standard widget. `POST /feedback` and
 `GET /feedback/report` are both public, with no key, unlike `/token`:
 
 ```sh
-curl -s https://michsethowusuwfp--afrispeech-listen-serve.modal.run/feedback/report
+curl -s https://michsethowusuwfp--afrilisten-serve.modal.run/feedback/report
 # -> {"report":{"swh":{"up":12,"down":2,"total":14,"upRate":85.7}, ...}}
 ```
 
@@ -260,8 +260,8 @@ Nothing about the service is Modal-specific. `server.mjs` adapts the same
 platform that can run a Node process behind a public HTTPS URL works:
 
 ```sh
-git clone https://github.com/AfriSpeech/afrispeech-listen
-cd afrispeech-listen
+git clone https://github.com/AfriSpeech/afrilisten
+cd afrilisten
 cp .env.example .env    # then fill in GEMINI_API_KEY and LISTEN_API_KEY
 npm install
 npm test
@@ -343,5 +343,5 @@ npm run test:e2e          # real Gemini: mints a token and speaks with it
 | `src/lib/languages.mjs` | The language catalogue (457, benchmark-selected -- see README.md) and `scopedLanguages()`, which a deployer's `LISTEN_LANGUAGES`/`LISTEN_COUNTRIES` narrows. |
 | `scripts/build-languages.mjs` | Regenerates the language table from gemini-word-mt-bench and afriso. |
 | `test/` | One file per area, each runnable on its own. |
-| `public/afrispeech-listen.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |
+| `public/afrilisten.js` | The actual client: reads the page, chunks it, mints a token, and speaks each piece over its own Gemini Live session. Served to embedders straight from this repo via jsDelivr; see the README. |
 | `public/afrispeech/readability.min.js` | Vendored copy of Mozilla's Readability, used by the widget to extract article text. Kept alongside the widget so the two are always the same version. |

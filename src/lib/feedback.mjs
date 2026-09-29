@@ -19,7 +19,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import os from 'node:os';
 
-const ROOT = process.env.LISTEN_FEEDBACK_DIR || path.join(os.tmpdir(), 'afrispeech-listen-feedback');
+const ROOT = process.env.LISTEN_FEEDBACK_DIR || path.join(os.tmpdir(), 'afrilisten-feedback');
 
 function dirFor(languageCode) {
   // One directory per language, so the report can list a single language's

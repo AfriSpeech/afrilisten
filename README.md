@@ -1,4 +1,4 @@
-# AfriSpeech Listen
+# AfriListen
 
 Drop one script tag on your site and readers get a **Listen** button that allows them to hear the
 content of the website spoken aloud in 457 African languages. No build step, no framework, no SDK to install.
@@ -19,7 +19,7 @@ Put this in the `<head>` of any page with article text on it:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrilisten@main/public/afrilisten.js"
   defer></script>
 ```
 
@@ -27,7 +27,7 @@ That is the whole integration — genuinely nothing else. A button appears in
 the corner, pressing it reads the page, and once the audio is ready a thumbs
 up/down sits under the player so a reader can say whether it sounded right.
 With no `data-endpoint` set, the widget talks to this project's own reference
-deployment: **AfriSpeech's Gemini key, on a shared daily budget, with no
+deployment: **AfriListen's Gemini key, on a shared daily budget, with no
 account or setup required on your side.** That is a deliberate trade so a
 first try — or a small site that just wants the feature — costs nothing and
 takes one script tag.
@@ -43,7 +43,7 @@ See [Running it yourself](#running-it-yourself) for the steps, then set
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrilisten@main/public/afrilisten.js"
   data-endpoint="https://your-own-deployment.modal.run"
   data-key="your-own-key"
   defer></script>
@@ -63,7 +63,7 @@ push and a reader actually getting it, and they behave differently:
 - **jsDelivr's own CDN cache** refreshes `@main` roughly every 12 hours on its
   own, or within a couple of minutes of
   [a purge request](https://www.jsdelivr.com/tools/purge) after a push —
-  purge both `public/afrispeech-listen.js` and
+  purge both `public/afrilisten.js` and
   `public/afrispeech/readability.min.js` if you change either.
 - **The reader's own browser** then caches whatever it fetched for **7 days**
   (`max-age=604800`, jsDelivr's header, not something this repository sets),
@@ -93,7 +93,7 @@ All optional, set on the script tag:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrilisten@main/public/afrilisten.js"
   data-lang="swh"
   data-position="bottom-left"
   data-label="Soma"
@@ -206,7 +206,7 @@ const session = await ai.live.connect({
 
 Join the raw PCM from every piece, in order, and either play it through the Web
 Audio API or wrap it in a 44-byte WAV header and hand it to an `<audio>`
-element — that is all `public/afrispeech-listen.js` in this repository does,
+element — that is all `public/afrilisten.js` in this repository does,
 and it is worth reading directly for the full, working version (retrying a
 failed piece, running a few at a time, the WAV header).
 

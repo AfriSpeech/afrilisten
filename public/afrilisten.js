@@ -1,7 +1,7 @@
 /**
- * AfriSpeech Listen widget.
+ * AfriListen widget.
  *
- *   <script src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js" defer></script>
+ *   <script src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrilisten@main/public/afrilisten.js" defer></script>
  *
  * Optional attributes:
  *   data-lang      force a starting language (an afriso code, e.g. "swa")
@@ -10,7 +10,7 @@
  *   data-endpoint  a token service other than this project's own shared default
  *   data-key       the x-listen-key that endpoint expects (only needed with data-endpoint)
  *
- * With neither data-endpoint nor data-key set, this talks to AfriSpeech's own
+ * With neither data-endpoint nor data-key set, this talks to AfriListen's own
  * reference deployment, on a Gemini key and daily budget shared across every
  * site using the default -- a genuine drop-in, at the cost of that shared
  * budget being the ceiling. Deploy your own instance (see DEPLOY.md) and set
@@ -44,7 +44,7 @@
   'use strict';
 
   var script = document.currentScript ||
-    document.querySelector('script[src*="afrispeech-listen"]');
+    document.querySelector('script[src*="afrilisten"]');
   if (!script || script.dataset.afrispeechReady) return;
   script.dataset.afrispeechReady = '1';
 
@@ -68,7 +68,7 @@
      key here is not a secret; the daily budget is) and for the steps to
      run your own deployment instead, on your own key and your own budget,
      once that shared one is not enough. */
-  var DEFAULT_SPEECH = 'https://michsethowusuwfp--afrispeech-listen-serve.modal.run';
+  var DEFAULT_SPEECH = 'https://michsethowusuwfp--afrilisten-serve.modal.run';
   var DEFAULT_SPEECH_KEY = '098c7a395adcc7ed92698eece81d3fdd6ad2e5148650675e';
   var SPEECH = script.dataset.endpoint || DEFAULT_SPEECH;
   /* A browser-delivered key is not a secret: anyone can read it from the page
@@ -98,7 +98,7 @@
   // still does the translating and speaking, on their own key and their own
   // quota, but a rating is about how well Gemini translates into a
   // language in general, which is worth pooling rather than splitting up.
-  var FEEDBACK_ENDPOINT = 'https://michsethowusuwfp--afrispeech-listen-serve.modal.run';
+  var FEEDBACK_ENDPOINT = 'https://michsethowusuwfp--afrilisten-serve.modal.run';
   var MIN_CHARS = 180;
   var UNSUPPORTED = 'Sorry, this webpage is not supported.';
   // A pinned version of the browser build of @google/genai, bundled by esm.sh

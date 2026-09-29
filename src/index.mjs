@@ -1,5 +1,5 @@
 /**
- * AfriSpeech Listen: token service.
+ * AfriListen: token service.
  *
  * Four routes:
  *
@@ -52,7 +52,7 @@ import { config } from './lib/config.mjs';
 const USAGE_NOTICE = config.isSharedDefault ? {
   status: 'shared-default',
   message:
-    'This is AfriSpeech\'s own reference deployment, and the widget talks to it by default '
+    'This is AfriListen\'s own reference deployment, and the widget talks to it by default '
     + 'when a page sets no data-endpoint. It is deliberately a shared public service: the '
     + 'Gemini key and the daily budget behind it are shared across every site using the '
     + 'default, unvetted per site, so heavy or important traffic should not depend on it '

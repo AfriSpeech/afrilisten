@@ -177,7 +177,7 @@ export async function claimBudget(request) {
         status: 503,
         scope: 'budget',
         retryAfter: DAY,
-        error: 'AfriSpeech Listen has reached its daily limit and is resting until tomorrow.',
+        error: 'AfriListen has reached its daily limit and is resting until tomorrow.',
       };
     }
   }

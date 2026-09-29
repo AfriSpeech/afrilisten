@@ -1,5 +1,5 @@
 """
-Modal deployment for the AfriSpeech Listen token service.
+Modal deployment for the AfriListen token service.
 
 This runs the exact Node service `npm start` runs locally: `server.mjs`
 adapting the fetch handler in `src/index.mjs` to Node's http server. Nothing
@@ -22,14 +22,18 @@ containers could silently drop one. Two different files never conflict. See
 src/lib/feedback.mjs for the full reasoning.
 
 Deploy:  modal deploy modal_app.py
-Logs:    modal app logs afrispeech-listen
+Logs:    modal app logs afrilisten
 """
 import os
 import subprocess
 
 import modal
 
-app = modal.App("afrispeech-listen")
+# The secret and volume below keep their original internal names on purpose:
+# renaming them would create fresh, empty resources rather than carry over
+# the existing key and feedback data, whereas the app name only decides the
+# URL slug and is safe to change freely.
+app = modal.App("afrilisten")
 
 PORT = 8787
 FEEDBACK_DIR = "/data/feedback"
