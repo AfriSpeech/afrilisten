@@ -375,7 +375,7 @@
    * Speak one text chunk over a Gemini Live session, streaming audio packets
    * into AudioContext as they arrive so the reader hears speech immediately.
    */
-  function speakChunkStreaming(genai, tokenInfo, promptText, onPacket, onFirstAudio) {
+  function speakChunkStreaming(genai, tokenInfo, promptText, onPacket, onFirstAudio, onRegisterClose) {
     return new Promise(function (resolve, reject) {
       var chunks = [];
       var settled = false;
@@ -391,11 +391,14 @@
         settled = true;
         clearTimeout(timer);
         try { if (session) session.close(); } catch (e) {}
+        session = null;
         if (err) reject(err); else resolve(value);
       }
 
+      var sent = false;
       function flush() {
-        if (!socketOpen || !session) return;
+        if (sent || !socketOpen || !session || settled) return;
+        sent = true;
         session.sendRealtimeInput({ text: promptText });
       }
 
@@ -405,14 +408,17 @@
         config: { responseModalities: [genai.Modality.AUDIO] },
         callbacks: {
           onopen: function () {
+            if (settled) return;
             socketOpen = true;
             flush();
           },
           onmessage: function (message) {
+            if (settled) return;
             var content = message && message.serverContent;
             if (!content) return;
             var parts = (content.modelTurn && content.modelTurn.parts) || [];
             for (var i = 0; i < parts.length; i += 1) {
+              if (settled) return;
               var data = parts[i] && parts[i].inlineData && parts[i].inlineData.data;
               if (data) {
                 var pcmBytes = base64ToBytes(data);
@@ -421,7 +427,7 @@
                   firstFired = true;
                   if (onFirstAudio) onFirstAudio();
                 }
-                if (onPacket) onPacket(pcmBytes);
+                if (onPacket && !settled) onPacket(pcmBytes);
               }
             }
             if (content.turnComplete) {
@@ -429,19 +435,28 @@
             }
           },
           onerror: function (event) {
+            if (settled) return;
             settle(new Error('live: ' + ((event && event.message) || 'socket error')));
           },
           onclose: function (event) {
-            if (!settled) {
-              settle(new Error('live: closed before turn completed' + (event && event.code ? ' (code ' + event.code + ')' : '')));
-            }
+            if (settled) return;
+            settle(new Error('live: closed before turn completed' + (event && event.code ? ' (code ' + event.code + ')' : '')));
           },
         },
       }).then(function (opened) {
+        if (settled) {
+          try { opened.close(); } catch (e) {}
+          return;
+        }
         session = opened;
+        if (onRegisterClose) {
+          onRegisterClose(function () {
+            settle(new Error('aborted'));
+          });
+        }
         flush();
       }).catch(function (err) {
-        settle(new Error('live: connect failed: ' + err.message));
+        if (!settled) settle(new Error('live: connect failed: ' + err.message));
       });
     });
   }
@@ -463,7 +478,7 @@
    * Speak `text` in `lang`: translates the article on the server in one shot,
    * receives sentence-bounded chunks, and streams audio chunk-by-chunk in real time.
    */
-  function buildAudio(text, lang, languageName, source, chosenVoice, audioCtx, onStatus) {
+  function buildAudio(text, lang, languageName, source, chosenVoice, audioCtx, onStatus, sessionHolder) {
     return Promise.all([fetchToken(text, lang, source, chosenVoice), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
@@ -473,11 +488,40 @@
       var allPcmPieces = [];
       var nextPlayTime = 0;
       var activeSources = [];
+      var currentSocketClose = null;
+      var aborted = false;
 
+      if (sessionHolder) {
+        sessionHolder.stop = function () {
+          aborted = true;
+          if (currentSocketClose) {
+            try { currentSocketClose(); } catch (e) {}
+            currentSocketClose = null;
+          }
+          activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+          activeSources = [];
+        };
+      }
+
+      var leftoverByte = null;
       function queuePcm(pcmBytes) {
-        if (!audioCtx || !pcmBytes || pcmBytes.length < 2) return;
+        if (!audioCtx || !pcmBytes || pcmBytes.length === 0 || aborted) return;
         try {
-          var int16 = new Int16Array(pcmBytes.buffer, pcmBytes.byteOffset, Math.floor(pcmBytes.byteLength / 2));
+          var bytes = pcmBytes;
+          if (leftoverByte !== null) {
+            var combined = new Uint8Array(bytes.length + 1);
+            combined[0] = leftoverByte;
+            combined.set(bytes, 1);
+            bytes = combined;
+            leftoverByte = null;
+          }
+          if (bytes.length % 2 !== 0) {
+            leftoverByte = bytes[bytes.length - 1];
+            bytes = bytes.subarray(0, bytes.length - 1);
+          }
+          if (bytes.length < 2) return;
+
+          var int16 = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
           var float32 = new Float32Array(int16.length);
           for (var i = 0; i < int16.length; i += 1) {
             float32[i] = int16[i] / 32768.0;
@@ -498,12 +542,14 @@
       }
 
       function processChunk(idx) {
+        if (aborted) return Promise.resolve(null);
         if (idx >= chunks.length) {
           var fullPcm = concatBytes(allPcmPieces);
           var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
           var remainingSec = audioCtx ? Math.max(0, nextPlayTime - audioCtx.currentTime) : 0;
           return new Promise(function (resolve) {
             setTimeout(function () {
+              if (aborted) { resolve(null); return; }
               resolve({
                 blob: blob,
                 fromCache: false,
@@ -527,11 +573,20 @@
         var prompt = 'Pronounce the following text in ' + langName + ':\n\n' + pieceText;
 
         return withRetry(function () {
+          if (aborted) return Promise.resolve(new Uint8Array(0));
           return speakChunkStreaming(genai, tokenInfo, prompt, queuePcm, function onFirstAudio() {
             if (onStatus) onStatus('playing', langName, chunks.length, idx + 1);
+          }, function setSocketClose(closeFn) {
+            currentSocketClose = closeFn;
           });
         }, PIECE_ATTEMPTS).then(function (piecePcm) {
+          currentSocketClose = null;
+          if (aborted) return null;
           allPcmPieces.push(piecePcm);
+          // Insert a small natural pause between sentences so they don't abruptly rush into one another
+          if (audioCtx && nextPlayTime > 0) {
+            nextPlayTime += 0.15;
+          }
           return processChunk(idx + 1);
         });
       }
@@ -670,6 +725,7 @@
     select.addEventListener('click', function (event) { event.stopPropagation(); });
 
     function start() {
+      if (button.disabled) return;
       if (!select.value) {
         try { select.showPicker(); } catch (e) { select.focus(); }
         return;
@@ -688,7 +744,7 @@
         }
       } catch (e) {}
 
-      var currentSession = null;
+      var currentSession = { stop: function () {} };
 
       function stopAndClose() {
         if (currentSession && currentSession.stop) currentSession.stop();
@@ -740,7 +796,8 @@
                     var chunkLabel = totalChunks > 1 ? ' (' + currentChunk + '/' + totalChunks + ')' : '';
                     setStatus('Playing ' + lName + chunkLabel, false, true);
                   }
-                }).then(function (result) {
+                }, currentSession).then(function (result) {
+                  if (!result) return null;
                   currentSession = result;
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
@@ -749,6 +806,7 @@
             });
         })
         .then(function (result) {
+          if (!result || !result.blob) return;
           var url = URL.createObjectURL(result.blob);
           var meta = result.meta;
           var langCode = select.value;
