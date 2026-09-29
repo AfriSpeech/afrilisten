@@ -304,6 +304,115 @@ npm run test:e2e   # mints a token, then uses ONLY that token (not the key)
                     # not silence.
 ```
 
+## Building a custom player (API Reference)
+
+If you prefer to build your own custom UI rather than using the drop-in widget (`public/afrilisten.js`), the token service provides two core endpoints:
+
+Base URL: `https://your-modal-username--afrilisten-serve.modal.run` (or your custom host)
+
+### 1. List supported languages and speech settings
+
+```http
+GET /languages
+```
+
+Response:
+```json
+{
+  "languages": [
+    { "code": "swh", "name": "Swahili", "google": "sw", "countries": ["KE", "TZ"] }
+  ],
+  "speech": {
+    "model": "gemini-3.1-flash-live-preview",
+    "maxChars": 1000,
+    "chunkChars": 250
+  }
+}
+```
+
+- Public and unauthenticated.
+- `speech.model` is the exact model minted tokens are locked to.
+- `maxChars` and `chunkChars` indicate the maximum page length to read and the maximum piece size Gemini Live will reliably process in one turn.
+
+### 2. Mint a short-lived token
+
+```http
+POST /token
+x-listen-key: <your-listen-key>
+content-type: application/json
+
+{ "pieces": 4 }
+```
+
+- `pieces`: A hint indicating roughly how many chunks you plan to speak, used to budget session attempts.
+- The service never receives the article text.
+
+Response:
+```json
+{
+  "token": "auth_tokens/...",
+  "model": "gemini-3.1-flash-live-preview",
+  "expireTime": "...",
+  "uses": 8
+}
+```
+
+The returned token is short-lived and constrained exclusively to the configured model, voice, and audio modality.
+
+### 3. Connect to Gemini Live from the browser
+
+Split your text into chunks of at most `chunkChars` (preferring sentence boundaries). Then open a Live session per piece using `@google/genai` in the browser, passing the ephemeral token as the API key:
+
+```js
+import { GoogleGenAI, Modality } from 'https://esm.sh/@google/genai@2.24.0';
+
+const ai = new GoogleGenAI({
+  apiKey: token,
+  httpOptions: { apiVersion: 'v1alpha' }
+});
+
+const session = await ai.live.connect({
+  model, // from /token response
+  config: { responseModalities: [Modality.AUDIO] },
+  callbacks: {
+    onopen: () => session.sendRealtimeInput({
+      text: `Translate the text below into ${languageName} and speak your translation aloud, in ${languageName}.\n\n${piece}`,
+    }),
+    onmessage: (message) => {
+      for (const part of message.serverContent?.modelTurn?.parts ?? []) {
+        if (part.inlineData?.data) {
+          // base64 PCM16, 24 kHz mono chunk - collect it
+        }
+      }
+      if (message.serverContent?.turnComplete) session.close();
+    },
+  },
+});
+```
+
+Join the raw PCM pieces in order, prepend a 44-byte WAV header (24 kHz, 16-bit mono), and pass the resulting `Blob` to an `<audio>` element or Web Audio context. See `public/afrilisten.js` for the reference client implementation.
+
+## Widget CDN caching & versioning
+
+When embedding the widget via jsDelivr:
+
+```html
+<script src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrilisten@main/public/afrilisten.js" defer></script>
+```
+
+Two caching layers apply:
+1. **jsDelivr CDN Cache**: Pulls from `@main` roughly every 12 hours, or within minutes after a manual purge at [jsdelivr.com/tools/purge](https://www.jsdelivr.com/tools/purge). When purging, purge both `public/afrilisten.js` and `public/afrispeech/readability.min.js`.
+2. **Browser HTTP Cache**: Browsers cache the fetched script for up to 7 days (`max-age=604800` set by jsDelivr). To force an immediate, immutable update for all users, pin to a specific git commit SHA instead of `@main` (e.g. `@6baf915`).
+
+## Language benchmark methodology
+
+Languages in `src/lib/speech-data.mjs` are selected based on [gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench), a word-level round-trip translation benchmark across living African languages from the [afriso](https://github.com/AfriSpeech/afriso) dataset.
+
+- Qualification: Languages scoring medium tier or better (at least 30% pass rate).
+- Exclusions: Non-African colonial/diaspora languages (Arabic varieties, Spanish, Yiddish, Ladino).
+- Retained: Indigenous African mother tongues including African creoles (Krio, Kabuverdianu, Cameroon Pidgin), Malagasy, and Afrikaans.
+- Regeneration: Run `npm run build:speech-data` to regenerate the data table from the latest benchmark results.
+
 ## Pointing the website at it
 
 The widget takes two values from the site build, both public:

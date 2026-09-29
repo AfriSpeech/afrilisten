@@ -5,6 +5,9 @@ node_modules/
 # Output captured from a run that was backgrounded.
 *.out
 
+# Session logs and transcripts
+*.txt
+
 # Python bytecode cache, from `modal deploy` importing modal_app.py.
 __pycache__/
 *.pyc
