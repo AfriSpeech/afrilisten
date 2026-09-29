@@ -19,7 +19,7 @@ Put this in the `<head>` of any page with article text on it:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
   defer></script>
 ```
 
@@ -43,7 +43,7 @@ See [Running it yourself](#running-it-yourself) for the steps, then set
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
   data-endpoint="https://your-own-deployment.modal.run"
   data-key="your-own-key"
   defer></script>
@@ -93,7 +93,7 @@ All optional, set on the script tag:
 
 ```html
 <script
-  src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js"
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/afrispeech-listen@main/public/afrispeech-listen.js"
   data-lang="swh"
   data-position="bottom-left"
   data-label="Soma"

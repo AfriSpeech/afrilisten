@@ -260,8 +260,8 @@ Nothing about the service is Modal-specific. `server.mjs` adapts the same
 platform that can run a Node process behind a public HTTPS URL works:
 
 ```sh
-git clone https://github.com/AfriSpeech/web-tts
-cd web-tts
+git clone https://github.com/AfriSpeech/afrispeech-listen
+cd afrispeech-listen
 cp .env.example .env    # then fill in GEMINI_API_KEY and LISTEN_API_KEY
 npm install
 npm test
