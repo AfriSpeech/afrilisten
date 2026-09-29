@@ -57,6 +57,13 @@ await check('the language list is offered, so no client has to guess a code', as
   assert.equal(swahili.google, 'sw');
 });
 
+await check('with no LISTEN_SHARED_DEFAULT, the notice says this deployment is not shared', async () => {
+  const r = await call('/languages');
+  const { notice } = await r.json();
+  assert.equal(notice.status, 'self-hosted');
+  assert.match(notice.message, /not a shared public service/);
+});
+
 await check('the language list also carries what the widget needs to chunk a page itself', async () => {
   const r = await call('/languages');
   const { speech } = await r.json();

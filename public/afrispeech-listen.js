@@ -7,6 +7,15 @@
  *   data-lang      force a starting language (an afriso code, e.g. "swa")
  *   data-position  "bottom-right" (default) or "bottom-left"
  *   data-label     button text, default "Listen"
+ *   data-endpoint  a token service other than this project's own shared default
+ *   data-key       the x-listen-key that endpoint expects (only needed with data-endpoint)
+ *
+ * With neither data-endpoint nor data-key set, this talks to AfriSpeech's own
+ * reference deployment, on a Gemini key and daily budget shared across every
+ * site using the default -- a genuine drop-in, at the cost of that shared
+ * budget being the ceiling. Deploy your own instance (see DEPLOY.md) and set
+ * both attributes once that is not enough, or if you would rather your
+ * traffic not share a budget with anyone else's.
  *
  * The page is read in the browser rather than fetched by our server, so it
  * works on pages that block automated requests and on anything rendered by
@@ -21,6 +30,12 @@
  * there is no server on the other end of that hop any more to make a
  * bandwidth trade worthwhile, so the joined PCM is wrapped in a plain WAV
  * header (44 bytes, no encoding) rather than run through an MP3 encoder.
+ *
+ * The finished clip is then cached in the reader's own browser (IndexedDB),
+ * keyed by a hash of the exact text and language, so listening to the same
+ * page again in the same language is instant and spends no Gemini quota at
+ * all -- an edited page or a different language is a different key, not a
+ * stale hit.
  *
  * Styles are shipped in this file on purpose: the host site's stylesheet does
  * not know about our class names, and Tailwind is not present on their page.
@@ -42,22 +57,31 @@
   var SCRIPT_URL = script.src;
   var SCRIPT_DIR = SCRIPT_URL.slice(0, SCRIPT_URL.lastIndexOf('/') + 1);
   /* The synthesis service is a separate deployment: it spends a metered Gemini
-     quota, so it lives apart from the site that embeds this widget. */
-  // No default host. Base.astro fails the build when a page enables the widget
-  // without PUBLIC_LISTEN_ENDPOINT, so an empty value here means the markup was
-  // hand-edited rather than that a default is missing.
-  var SPEECH = script.dataset.endpoint;
+     quota, so it lives apart from the site that embeds this widget.
+
+     data-endpoint and data-key are both optional. With neither set, this
+     widget is a true drop-in: it talks to this project's own reference
+     deployment, on this project's own Gemini key and daily budget, shared
+     across every site that has not set up its own. That is a deliberate
+     trade this project makes so a first try costs nothing and takes one
+     script tag -- see DEPLOY.md for why it is safe to default this way (the
+     key here is not a secret; the daily budget is) and for the steps to
+     run your own deployment instead, on your own key and your own budget,
+     once that shared one is not enough. */
+  var DEFAULT_SPEECH = 'https://michsethowusuwfp--afrispeech-listen-serve.modal.run';
+  var DEFAULT_SPEECH_KEY = '098c7a395adcc7ed92698eece81d3fdd6ad2e5148650675e';
+  var SPEECH = script.dataset.endpoint || DEFAULT_SPEECH;
   /* A browser-delivered key is not a secret: anyone can read it from the page
-     source. It exists to let the service tell widget traffic apart from stray
-     calls, and nothing more.
+     source, including the default above. It exists to let the service tell
+     widget traffic apart from stray calls, and nothing more.
 
      Nor is the service's origin allowlist a lock. An Origin header is set by
      the browser and only the browser, so curl sends none and anyone can forge
      one. The allowlist stops other people's pages from spending the quota from
      a reader's browser, which is worth having. What caps what a caller can
      actually cost is the service's rate limits, so host it somewhere that has
-     them configured. */
-  var SPEECH_KEY = script.dataset.key || '';
+     them configured -- or use the default above, which already does. */
+  var SPEECH_KEY = script.dataset.key || DEFAULT_SPEECH_KEY;
   var READABILITY = SCRIPT_DIR + 'afrispeech/readability.min.js';
   // An hour, not a day: long enough that picking a language does not cost a
   // request every time, short enough that a change to the list (a benchmark
@@ -95,12 +119,8 @@
 
   /* ------------------------------------------------------------- catalogue */
 
-  /* Every call to the service goes through here. With no endpoint set, fetch
-     would be handed "undefined/languages", which resolves against the reader's
-     own site and comes back as HTML, so the failure would look like a network
-     problem instead of the misconfiguration it is. */
+  /** Every call to the token service goes through here. */
   function speechUrl(path) {
-    if (!SPEECH) throw new Error('no data-endpoint on the script tag');
     return SPEECH + path;
   }
 
@@ -233,6 +253,69 @@
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ languageCode: languageCode, rating: rating }),
     }).then(function (response) { return response.ok; }, function () { return false; });
+  }
+
+  /* --------------------------------------------------------- audio, cached */
+  /* Listening again to a page already read costs a fresh set of Gemini Live
+     sessions for no reason: the words have not changed. The finished clip is
+     kept in IndexedDB (not localStorage, which cannot hold a Blob this size
+     without a base64 round trip that would bloat it further), keyed by a
+     hash of the exact text and language, so an edited page or a different
+     language is a cache miss rather than stale or wrong audio, and nothing
+     has to compare the reader's chosen language to what a cached entry was
+     actually spoken in. */
+
+  var AUDIO_DB_NAME = 'afrispeech.audio-cache';
+  var AUDIO_STORE = 'clips';
+  var AUDIO_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
+
+  function cacheKeyFor(text, languageCode) {
+    if (!window.crypto || !window.crypto.subtle) return Promise.reject(new Error('no SubtleCrypto'));
+    var bytes = new TextEncoder().encode(languageCode + '\u0000' + text);
+    return crypto.subtle.digest('SHA-256', bytes).then(function (digest) {
+      var hex = '';
+      var view = new Uint8Array(digest);
+      for (var i = 0; i < view.length; i += 1) {
+        hex += (view[i] < 16 ? '0' : '') + view[i].toString(16);
+      }
+      return hex;
+    });
+  }
+
+  function openAudioDb() {
+    return new Promise(function (resolve, reject) {
+      if (!window.indexedDB) { reject(new Error('no indexedDB')); return; }
+      var req = indexedDB.open(AUDIO_DB_NAME, 1);
+      req.onupgradeneeded = function () { req.result.createObjectStore(AUDIO_STORE); };
+      req.onsuccess = function () { resolve(req.result); };
+      req.onerror = function () { reject(req.error || new Error('indexedDB open failed')); };
+    });
+  }
+
+  /** The cached blob and meta for `key`, or null on a miss, an expired entry, or any failure. */
+  function getCachedAudio(key) {
+    return openAudioDb().then(function (db) {
+      return new Promise(function (resolve) {
+        var req = db.transaction(AUDIO_STORE, 'readonly').objectStore(AUDIO_STORE).get(key);
+        req.onsuccess = function () {
+          var entry = req.result;
+          resolve(entry && Date.now() - entry.at <= AUDIO_CACHE_TTL ? entry : null);
+        };
+        req.onerror = function () { resolve(null); };
+      });
+    }).catch(function () { return null; });
+  }
+
+  /** Best-effort: a reader who is already hearing the audio should not be held up by this. */
+  function putCachedAudio(key, blob, meta) {
+    return openAudioDb().then(function (db) {
+      return new Promise(function (resolve) {
+        var tx = db.transaction(AUDIO_STORE, 'readwrite');
+        tx.objectStore(AUDIO_STORE).put({ blob: blob, meta: meta, at: Date.now() }, key);
+        tx.oncomplete = function () { resolve(); };
+        tx.onerror = function () { resolve(); };
+      });
+    }).catch(function () {});
   }
 
   /* --------------------------------------------------------- text, chunked */
@@ -633,16 +716,30 @@
 
       readThisPage()
         .then(function (page) {
-          // Gemini Live translates and speaks in one turn now, so a full page
-          // is a matter of seconds rather than the minute or two the old
-          // translate-then-speak pipeline needed. Say that once, naming the
-          // language they picked, and let the bar carry the wait rather than
-          // a countdown that cannot honestly report progress mid-piece.
+          var langCode = select.value;
           var chosen = select.options[select.selectedIndex];
           var languageName = chosen ? chosen.textContent : 'audio';
-          panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Making a ' +
-            escapeHtml(languageName) + ' recording. It will start playing on its own.</p>';
-          return buildAudio(page.text, select.value, languageName, speechConfig);
+
+          return cacheKeyFor(page.text, langCode)
+            .catch(function () { return null; }) // no SubtleCrypto: skip the cache, not the reading
+            .then(function (key) {
+              return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
+                if (cached) return { blob: cached.blob, meta: cached.meta };
+
+                // Gemini Live translates and speaks in one turn now, so a full
+                // page is a matter of seconds rather than the minute or two
+                // the old translate-then-speak pipeline needed. Say that
+                // once, naming the language they picked, and let the bar
+                // carry the wait rather than a countdown that cannot
+                // honestly report progress mid-piece.
+                panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Making a ' +
+                  escapeHtml(languageName) + ' recording. It will start playing on its own.</p>';
+                return buildAudio(page.text, langCode, languageName, speechConfig).then(function (result) {
+                  if (key) putCachedAudio(key, result.blob, result.meta);
+                  return result;
+                });
+              });
+            });
         })
         .then(function (result) {
           var url = URL.createObjectURL(result.blob);

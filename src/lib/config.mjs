@@ -61,6 +61,12 @@ export const config = {
   // rotating address; this is the one that is not.
   budgetPerDay: clampInt('LISTEN_BUDGET_PER_DAY', process.env.LISTEN_BUDGET_PER_DAY, 0, 1000000, 5000),
 
+  // Set on this project's own reference deployment only (see modal_app.py),
+  // never on a self-hosted one: changes the wording of the usage notice from
+  // "this is not a shared public service" to the opposite, which is only
+  // true of the one deployment the widget defaults to with no data-endpoint.
+  isSharedDefault: process.env.LISTEN_SHARED_DEFAULT === '1',
+
   apiKey: process.env.LISTEN_API_KEY || '',
   allowedOrigins: (process.env.LISTEN_ALLOWED_ORIGINS || '')
     .split(',')

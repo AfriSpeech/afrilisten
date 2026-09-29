@@ -15,6 +15,19 @@ That makes this cheap to run and simple to reason about: there is no queue, no
 shared cache, no audio pipeline, and nothing here is metered by how long a
 synthesis takes, because none happens here.
 
+**Most people do not need to deploy this at all.** With no `data-endpoint` set,
+the widget already talks to this project's own reference deployment on this
+project's own Gemini key — that is what makes it a genuine drop-in. This file
+is for the two reasons you would deploy your own instead:
+
+- your traffic is more than occasional, and you would rather not share a
+  budget with every other site using the default;
+- you want your own rate limits, your own origin allowlist, and a deployment
+  that is not shared with anyone else's traffic.
+
+Both instances run the exact same code; the only difference is whose key and
+whose limits are behind the URL the widget is pointed at.
+
 ## Whose key is it
 
 **The key is one you supply.** It is the one thing you cannot share, whether
@@ -100,10 +113,11 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 | `LISTEN_RATE_ENABLED` | on | set `0` to switch off | Turns the per-address limits off. |
 | `LISTEN_RATE_PER_MINUTE` | `5` | 0 to 600 | Per address, per minute. 0 switches that limit off. |
 | `LISTEN_RATE_PER_DAY` | `100` | 0 to 100000 | Per address, per day. 0 switches that limit off. |
-| `LISTEN_BUDGET_PER_DAY` | `5000` | 0 to 1000000 | Tokens minted across everyone, per day. The per-address limits are all bypassed by rotating address; this is the one that is not. 0 removes the cap. |
+| `LISTEN_BUDGET_PER_DAY` | `5000` | 0 to 1000000 | Tokens minted across everyone, per day. The per-address limits are all bypassed by rotating address; this is the one that is not. 0 removes the cap. This project's own reference deployment sets it to `10000`, since it is the shared default every widget with no `data-endpoint` uses. |
 | `LISTEN_HELD_BACK_LANGUAGES` | empty | | Comma separated codes to hide from the picker. |
 | `LISTEN_LANGUAGES` | empty (everything) | | Comma separated AfriSpeech codes to offer, e.g. `yor,swh,hau`. Combines with `LISTEN_COUNTRIES` as a union, not a filter on top of it. |
 | `LISTEN_COUNTRIES` | empty (everything) | | Comma separated ISO alpha-2 country codes; every language attributed to any of them is offered, e.g. `NG,GH,KE`. Leaving both this and `LISTEN_LANGUAGES` unset offers all 457. |
+| `LISTEN_SHARED_DEFAULT` | unset | `1` or unset | Set only on this project's own reference deployment (see `modal_app.py`). Changes the `/languages` usage notice to say this is deliberately the shared, unvetted-per-site default, rather than the opposite. Leave unset on your own deployment. |
 
 Full list with defaults in [`.env.example`](.env.example).
 
@@ -192,6 +206,30 @@ deployment's widget at a different feedback pool would mean editing
 `FEEDBACK_ENDPOINT` in a copy of the widget, which forfeits "always latest"
 from jsDelivr. Only do that if you specifically want a private, unpooled set
 of ratings instead of the shared one.
+
+### Concurrency and its limit
+
+`checkFlood`/`claimBudget` (`src/lib/ratelimit.mjs`) and the token minter are
+in-memory, per-process, not a distributed counter — there is deliberately no
+Redis or database here. That is correct as long as one container is handling
+everything, which `max_inputs=100` and `min_containers=1` are chosen to make
+the normal case: minting a token is I/O-bound (waiting on Google, not CPU), so
+one small container can hold far more of these in flight than its 0.125-core
+allocation might suggest.
+
+Verified directly against the real deployment: 20 truly concurrent `/token`
+requests were all served correctly with no corruption, and the per-address
+rate limit could not be bypassed by sending a forged `X-Forwarded-For` header
+— Modal's own proxy overwrites it rather than trusting the client, which is
+what the limiter's client-address logic (`callerId` in `ratelimit.mjs`)
+depends on.
+
+What is **not** true under enough simultaneous load: if traffic ever exceeds
+`max_inputs`, Modal starts a second container with its own separate counters,
+and the "one shared daily budget" becomes two independent ones until it scales
+back down. This is a real limit of choosing simplicity (no external store)
+over strict global accuracy under a traffic spike, not something silently
+assumed to be fine.
 
 ### What this costs
 

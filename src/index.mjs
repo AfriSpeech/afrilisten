@@ -36,16 +36,33 @@ import { recordFeedback, feedbackReport } from './lib/feedback.mjs';
 import { languageCatalogue, findSpeechLanguage, scopedLanguages } from './lib/languages.mjs';
 import { config } from './lib/config.mjs';
 
-/* Shown to anyone integrating against this deployment.
+/* Shown to anyone integrating against this deployment. Two different
+ * messages, because two different things are true depending on which
+ * deployment is answering:
  *
- * Minting a token is done with a key this repository pays for, and that key
- * has a budget. It is shared, so it can be exhausted by other callers, and
- * there is no way to bill the person reading the page. That makes this a
- * place to develop and demonstrate the widget, not something to put in front
- * of readers who expect it to be there next minute. Saying so in the first
- * response an integrator receives is cheaper than letting them find out in
- * production. */
-const USAGE_NOTICE = {
+ *   - This project's own reference deployment (LISTEN_SHARED_DEFAULT=1, set
+ *     only in modal_app.py) is what the widget talks to with no
+ *     data-endpoint set, and is deliberately a shared public service: that
+ *     is what makes the widget a genuine drop-in. Its budget is shared and
+ *     not vetted per site, which is worth saying plainly rather than letting
+ *     an integrator assume otherwise.
+ *   - Anyone else's deployment is not shared, runs on their own key, and its
+ *     budget is bounded by the plan they chose rather than by this project.
+ */
+const USAGE_NOTICE = config.isSharedDefault ? {
+  status: 'shared-default',
+  message:
+    'This is AfriSpeech\'s own reference deployment, and the widget talks to it by default '
+    + 'when a page sets no data-endpoint. It is deliberately a shared public service: the '
+    + 'Gemini key and the daily budget behind it are shared across every site using the '
+    + 'default, unvetted per site, so heavy or important traffic should not depend on it '
+    + 'being there. It never sees the text of the page being read: it only mints short-lived '
+    + 'tokens, and the audio is produced by a Gemini Live session the browser opens for itself.',
+  production:
+    'Deploy your own instance with your own Gemini API key, as DEPLOY.md sets out (a basic '
+    + 'deployment costs $0 too), and set data-endpoint/data-key on the script tag to point the '
+    + 'widget at it instead of this shared default.',
+} : {
   status: 'self-hosted',
   message:
     'This endpoint is not a shared public service. It belongs to whoever deployed this '

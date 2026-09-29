@@ -8,7 +8,7 @@
   "main": "src/index.mjs",
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
-    "test": "node test/auth.mjs && node test/languages.mjs && node test/ratelimit.mjs && node test/tokens.mjs && node test/feedback.mjs && node test/routes.mjs",
+    "test": "node test/auth.mjs && node test/languages.mjs && node test/ratelimit.mjs && node test/tokens.mjs && node test/feedback.mjs && node test/routes.mjs && node test/shared-default.mjs",
     "test:e2e": "node --env-file-if-exists=.env test/e2e.mjs",
     "build:speech-data": "node scripts/build-languages.mjs"
   },

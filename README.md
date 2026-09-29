@@ -16,20 +16,6 @@ minting the short-lived token that lets the browser do that without ever
 holding the real Gemini key: a small token service, not a synthesis pipeline.
 Nobody's server ever sees the page's text or the resulting audio.
 
-## Before you integrate this: it is your endpoint, not a shared one
-
-This repository is code to deploy, not a service to point at. Whoever runs an
-instance pays for the tokens it mints, so what an instance can serve is bounded
-by their plan rather than by anyone else's. `GET /languages` carries the same
-statement as `notice`, so an integration reads it rather than has to know it:
-
-```json
-{ "notice": { "status": "self-hosted", "message": "...", "production": "..." } }
-```
-
-The short version is in [Running it yourself](#running-it-yourself) below: deploy
-it with your own key, and keep it server-side.
-
 ## Add it to your page
 
 Put this in the `<head>` of any page with article text on it:
@@ -37,16 +23,39 @@ Put this in the `<head>` of any page with article text on it:
 ```html
 <script
   src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js"
-  data-endpoint="https://listen.example.org"
   defer></script>
 ```
 
-That is the whole integration. A button appears in the corner, pressing it
-reads the page, and once the audio is ready a thumbs up/down sits under the
-player so a reader can say whether it sounded right. Every widget everywhere
-reports to the same pool — a rating is a signal about how well Gemini
-translates into a language in general, not something specific to your site's
-readers — and the aggregate is public for anyone to read, no key needed: see
+That is the whole integration — genuinely nothing else. A button appears in
+the corner, pressing it reads the page, and once the audio is ready a thumbs
+up/down sits under the player so a reader can say whether it sounded right.
+With no `data-endpoint` set, the widget talks to this project's own reference
+deployment: **AfriSpeech's Gemini key, on a shared daily budget, with no
+account or setup required on your side.** That is a deliberate trade so a
+first try — or a small site that just wants the feature — costs nothing and
+takes one script tag.
+
+The shared budget is generous but not unlimited, and it is not vetted per
+site: anyone can point a page at the default. If your traffic is more than
+occasional, or you would rather not share a budget with every other site
+using the default, run your own instance on your own Gemini key — it costs
+$0 for a basic deployment too (two free tiers stack; see
+[What this costs](DEPLOY.md#what-this-costs)) and takes about five minutes.
+See [Running it yourself](#running-it-yourself) for the steps, then set
+`data-endpoint` (and `data-key`) to point the widget at it instead:
+
+```html
+<script
+  src="https://cdn.jsdelivr.net/gh/AfriSpeech/web-tts@main/public/afrispeech-listen.js"
+  data-endpoint="https://your-own-deployment.modal.run"
+  data-key="your-own-key"
+  defer></script>
+```
+
+Feedback is the one thing that does **not** move to your own deployment even
+then: every widget everywhere — default or self-hosted — reports to the same
+public pool, because a rating is a signal about how well Gemini translates
+into a language in general, not something specific to one site's readers. See
 [Feedback](DEPLOY.md#feedback) in DEPLOY.md.
 
 The script src above points at `main` in this repository, not a pinned
@@ -72,16 +81,14 @@ immutable and serves it consistently everywhere with no propagation delay,
 which is also the quickest way to tell whether something is a real bug or
 just an unrefreshed cache.
 
-`data-endpoint` is the token service, not an audio server, and it is yours to
-run: see [Running it yourself](#running-it-yourself). There is no default for
-it: a script tag without one gets a widget that cannot reach a service, which
-is a confusing thing to hand someone, so it says so on the language list
-instead of failing quietly.
-
 The page is read **in the reader's browser**, not fetched by anyone's server,
 so it works on pages that block automated requests and on anything rendered by
 JavaScript. Readability and the Gemini client library are only downloaded once
-someone actually presses the button.
+someone actually presses the button. The finished clip is then cached in the
+reader's own browser (IndexedDB), keyed by the exact text and language, so
+listening to the same page again is instant and costs no quota at all —
+editing the page or picking a different language is a fresh key, not stale
+audio.
 
 ### Options
 
@@ -101,19 +108,21 @@ All optional, set on the script tag:
 | `data-lang`     | reader's  | Start in this language instead of asking. An AfriSpeech code, e.g. `swh`. |
 | `data-position` | `bottom-right` | `bottom-right` or `bottom-left`.                       |
 | `data-label`    | `Listen`  | The button text.                                           |
-| `data-endpoint` | none, required | The token service to call. There is no default.      |
-| `data-key`      | none      | A browser key, if you run your own deployment.             |
+| `data-endpoint` | this project's shared deployment | A token service you run yourself instead. See [Running it yourself](#running-it-yourself). |
+| `data-key`      | this project's shared key | The `x-listen-key` your own deployment expects. Only needed with `data-endpoint`. |
 
-### Before you go live
+### Before you go live with your own deployment
 
 **Which sites may use a service is that service's decision, not yours.**
 `LISTEN_ALLOWED_ORIGINS` is enforced as a CORS check, and a page on an origin
 that is not allowed gets no error you can read: the page loads, the button
 appears, and pressing it does nothing. Worth knowing about, because it is the
-one thing that can stop an integration working and it fails quietly.
+one thing that can stop an integration working and it fails quietly. This
+does not apply to the shared default, which has to accept any origin to be a
+genuine drop-in.
 
-If you run your own service — which is the only way to run one — narrow it to
-the origins you expect. See [DEPLOY.md](DEPLOY.md).
+If you run your own service, narrow it to the origins you expect. See
+[DEPLOY.md](DEPLOY.md).
 
 Check which situation you are in by loading your page and watching the network
 tab for the `/languages` request the widget makes on load. A `200` means you are

@@ -71,27 +71,40 @@ image = (
 @app.function(
     image=image,
     secrets=[modal.Secret.from_name("afrispeech-listen-secrets")],
+    # This deployment is now the zero-config default every embedder's widget
+    # talks to unless they set up their own, so the shared daily budget below
+    # is the one number standing between that and unbounded Gemini spend.
+    # LISTEN_SHARED_DEFAULT flips the usage notice's wording to say so.
+    env={"LISTEN_BUDGET_PER_DAY": "10000", "LISTEN_SHARED_DEFAULT": "1"},
     volumes={"/data": feedback_volume},
     timeout=1800,
     # One container kept running at all times, so a reader never pays for a
     # cold start. Affordable specifically because of how little this asks
-    # for below: at Modal's published rate (2026), 0.125 core + 128 MiB
-    # continuously is about $0.0000019/sec, which works out to roughly
-    # $5/month for one container that is never actually idle-to-zero. Raise
+    # for below: at Modal's published rate (2026), 0.125 core + 256 MiB
+    # continuously is about $0.0000023/sec, which works out to roughly
+    # $6/month for one container that is never actually idle-to-zero. Raise
     # this only if traffic needs more than one warm container at once; extra
     # containers beyond this floor still scale down via scaledown_window.
     min_containers=1,
-    # Minting a token is one small JSON round trip to Google, not compute
-    # work, so this asks for Modal's floor rather than its default-if-unset
-    # (which happens to be the same number, but stated explicitly here so it
-    # stays true on purpose rather than by accident of what Modal defaults to).
+    # Minting a token is one small JSON round trip to Google, not CPU work,
+    # so 0.125 core (Modal's floor) is plenty. Memory is a little above the
+    # floor (128 -> 256 MiB) for headroom under the higher per-container
+    # concurrency below, which is otherwise the same idle cost either way.
     cpu=0.125,
-    memory=128,
+    memory=256,
     # How long an extra container (beyond the one min_containers keeps warm)
     # stays up after a burst of traffic before scaling back down.
     scaledown_window=60,
 )
-@modal.concurrent(max_inputs=32)
+# High on purpose: the rate limiter and the shared daily budget are in-memory
+# per container (see src/lib/ratelimit.mjs), not a distributed counter, so
+# they are only accurate as long as one container is handling everything.
+# Minting a token is I/O-bound -- waiting on Google, not CPU -- so one
+# container can hold far more of these in flight at once than the CPU
+# allocation above would suggest, and raising this is what keeps traffic on
+# that one accurate counter rather than spreading it across several
+# containers that would each enforce the limits independently.
+@modal.concurrent(max_inputs=100)
 @modal.web_server(PORT, startup_timeout=60)
 def serve():
     subprocess.Popen(
