@@ -89,35 +89,35 @@ export async function singleTranslate(text, sl, tl, timeoutMs = 6000) {
  * @param {string} [sourceLang="auto"]
  * @returns {Promise<{text: string, detected: string|null, translated: boolean}>}
  */
-export async function translateViaThai(text, targetCode, sourceLang = 'auto') {
+export async function translateViaThai(text, targetCode, sourceLang = 'auto', maxChars = 2000) {
   if (!text || !targetCode) return { text: text || '', detected: null, translated: false };
-  const clip = clipToLimit(text, 100);
+  const clean = String(text || '').slice(0, maxChars).trim();
 
   // If source language matches target language, skip translation immediately
   if (sourceLang && sourceLang !== 'auto') {
     const s = String(sourceLang).toLowerCase().split('-')[0].trim();
     const t = String(targetCode).toLowerCase().split('-')[0].trim();
     if (s === t) {
-      return { text: clip, detected: s, translated: false };
+      return { text: clean, detected: s, translated: false };
     }
   }
 
   // If target is Thai itself
   if (targetCode === 'th') {
     try {
-      const res = await singleTranslate(clip, sourceLang, 'th');
-      return { text: res.text || clip, detected: res.detected, translated: true };
+      const res = await singleTranslate(clean, sourceLang, 'th');
+      return { text: res.text || clean, detected: res.detected, translated: true };
     } catch {
-      return { text: clip, detected: null, translated: false };
+      return { text: clean, detected: null, translated: false };
     }
   }
 
   // Attempt Thai pivot: source -> Thai -> target
   try {
-    const hop1 = await singleTranslate(clip, sourceLang, 'th');
+    const hop1 = await singleTranslate(clean, sourceLang, 'th');
     if (hop1.detected === targetCode) {
       // Input text was already in the target language
-      return { text: clip, detected: hop1.detected, translated: false };
+      return { text: clean, detected: hop1.detected, translated: false };
     }
     if (hop1.text && isThai(hop1.text)) {
       const hop2 = await singleTranslate(hop1.text, 'th', targetCode);
@@ -131,9 +131,9 @@ export async function translateViaThai(text, targetCode, sourceLang = 'auto') {
 
   // Fallback: direct translation source -> target
   try {
-    const direct = await singleTranslate(clip, sourceLang, targetCode);
-    return { text: direct.text || clip, detected: direct.detected, translated: true };
+    const direct = await singleTranslate(clean, sourceLang, targetCode);
+    return { text: direct.text || clean, detected: direct.detected, translated: true };
   } catch {
-    return { text: clip, detected: null, translated: false };
+    return { text: clean, detected: null, translated: false };
   }
 }
