@@ -10,7 +10,7 @@ import os from 'node:os';
 
 const dir = await mkdtemp(path.join(os.tmpdir(), 'afrispeech-feedback-test-'));
 process.env.LISTEN_FEEDBACK_DIR = dir;
-const { recordFeedback, feedbackReport } = await import('../src/lib/feedback.mjs');
+const { recordFeedback, feedbackReport, renderFeedbackPage } = await import('../src/lib/feedback.mjs');
 
 let passed = 0;
 const t = async (name, fn) => {
@@ -47,6 +47,21 @@ await t('two ratings written at the same instant are both kept', async () => {
 await t('languages with no ratings are left out of the report', async () => {
   const report = await feedbackReport();
   assert.ok(!('amh' in report), 'a language nobody rated should not appear');
+});
+
+await t('renderFeedbackPage produces a well-formed HTML document with metrics', async () => {
+  const report = await feedbackReport();
+  const html = renderFeedbackPage(report, [
+    { code: 'swh', name: 'Swahili', countries: ['KE', 'TZ'] },
+    { code: 'yor', name: 'Yoruba', countries: ['NG'] },
+    { code: 'amh', name: 'Amharic', countries: ['ET'] },
+  ]);
+  assert.ok(html.includes('<!DOCTYPE html>'), 'should be full HTML');
+  assert.ok(html.includes('Swahili'), 'should contain Swahili');
+  assert.ok(html.includes('Yoruba'), 'should contain Yoruba');
+  assert.ok(html.includes('Amharic'), 'should contain Amharic');
+  assert.ok(html.includes('AfriListen Performance'), 'should have brand heading');
+  assert.ok(html.includes('Total Ratings'), 'should have stats cards');
 });
 
 await rm(dir, { recursive: true, force: true });

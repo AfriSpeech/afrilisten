@@ -144,6 +144,25 @@ await check('a valid rating is accepted and shows up in the report', async () =>
   assert.ok(report.swh?.up >= 1, 'the rating just sent should be counted');
 });
 
+await check('GET /feedback returns the HTML performance dashboard', async () => {
+  const response = await callNoKey('/feedback');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
+  const text = await response.text();
+  assert.ok(text.includes('<!DOCTYPE html>'), 'should return HTML document');
+  assert.ok(text.includes('AfriListen Performance'), 'should have dashboard title');
+});
+
+await check('GET /feedback/report with Accept text/html returns the HTML dashboard', async () => {
+  const response = await callNoKey('/feedback/report', {
+    headers: { 'accept': 'text/html,application/xhtml+xml' },
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8');
+  const text = await response.text();
+  assert.ok(text.includes('<!DOCTYPE html>'));
+});
+
 await check('an unknown route is a 404, not a crash', async () => {
   const response = await call('/nope');
   assert.equal(response.status, 404);

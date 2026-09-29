@@ -68,7 +68,7 @@
      key here is not a secret; the daily budget is) and for the steps to
      run your own deployment instead, on your own key and your own budget,
      once that shared one is not enough. */
-  var DEFAULT_SPEECH = 'https://michsethowusuwfp--afrilisten-serve.modal.run';
+  var DEFAULT_SPEECH = 'https://listen.afrispeech.org';
   var DEFAULT_SPEECH_KEY = '098c7a395adcc7ed92698eece81d3fdd6ad2e5148650675e';
   var SPEECH = script.dataset.endpoint || DEFAULT_SPEECH;
   /* A browser-delivered key is not a secret: anyone can read it from the page
@@ -98,7 +98,7 @@
   // still does the translating and speaking, on their own key and their own
   // quota, but a rating is about how well Gemini translates into a
   // language in general, which is worth pooling rather than splitting up.
-  var FEEDBACK_ENDPOINT = 'https://michsethowusuwfp--afrilisten-serve.modal.run';
+  var FEEDBACK_ENDPOINT = 'https://listen.afrispeech.org';
   var MIN_CHARS = 180;
   var UNSUPPORTED = 'Sorry, this webpage is not supported.';
   // A pinned version of the browser build of @google/genai, bundled by esm.sh

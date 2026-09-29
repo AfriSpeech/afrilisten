@@ -121,6 +121,22 @@ values are clamped rather than rejected, so a typo quietly becomes the default.
 
 Full list with defaults in [`.env.example`](.env.example).
 
+## Deploying on Coolify (Docker)
+
+This service includes a standard `Dockerfile` and runs seamlessly on Coolify or any Docker host:
+
+1. In Coolify, create a new Application from the GitHub repository `AfriSpeech/afrilisten`.
+2. Set **Build Pack** to `Dockerfile`.
+3. Set **Exposed Port** to `8787`.
+4. Set Environment Variables:
+   - `GEMINI_API_KEY`: Your Gemini API key from AI Studio
+   - `LISTEN_API_KEY`: A secret string for your widget
+   - `LISTEN_ALLOWED_ORIGINS`: Allowed origins (e.g. `https://yourdomain.com` or `*`)
+   - `LISTEN_BUDGET_PER_DAY`: Daily token quota (e.g. `10000`)
+   - `LISTEN_FEEDBACK_DIR`: `/data/feedback`
+5. Add a **Persistent Storage** volume mounted at `/data` so community feedback ratings persist across container restarts.
+6. Set your domain (e.g. `https://listen.afrispeech.org`) and deploy!
+
 ## Deploying on Modal
 
 This is how the deployed instance actually runs. `modal_app.py` builds a small
@@ -188,16 +204,15 @@ something specific to one deployer's readers, so there is one pool rather
 than every deployer starting a separate, empty one.
 
 That means **you do not deploy anything for feedback to work** — it is
-already live for anyone using the standard widget. `POST /feedback` and
-`GET /feedback/report` are both public, with no key, unlike `/token`:
+already live for anyone using the standard widget.
+
+- **Web Dashboard:** Visit [https://listen.afrispeech.org/feedback](https://listen.afrispeech.org/feedback) in any browser to view live per-language ratings, approval rates, and community metrics.
+- **JSON API:** Both `POST /feedback` and `GET /feedback/report` are public with no API key needed:
 
 ```sh
-curl -s https://michsethowusuwfp--afrilisten-serve.modal.run/feedback/report
+curl -s https://listen.afrispeech.org/feedback/report
 # -> {"report":{"swh":{"up":12,"down":2,"total":14,"upRate":85.7}, ...}}
 ```
-
-Anyone can read that link; build whatever page or dashboard you want over it.
-This repository does not ship one.
 
 If you deploy your own instance of this service (for translation and speech,
 on your own Gemini key), its own `/feedback` routes exist in the same

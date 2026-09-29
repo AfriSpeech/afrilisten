@@ -32,8 +32,8 @@
 import { checkAuth, corsHeaders } from './lib/auth.mjs';
 import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
 import { mintToken } from './lib/tokens.mjs';
-import { recordFeedback, feedbackReport } from './lib/feedback.mjs';
-import { languageCatalogue, findSpeechLanguage, scopedLanguages } from './lib/languages.mjs';
+import { recordFeedback, feedbackReport, renderFeedbackPage } from './lib/feedback.mjs';
+import { languageCatalogue, findSpeechLanguage, scopedLanguages, OFFERED_LANGUAGES } from './lib/languages.mjs';
 import { config } from './lib/config.mjs';
 
 /* Shown to anyone integrating against this deployment. Two different
@@ -160,8 +160,34 @@ export default {
       return Response.json({ ok: true }, { headers: cors });
     }
 
+    if ((url.pathname === '/feedback' || url.pathname === '/performance') && request.method === 'GET') {
+      const report = await feedbackReport();
+      const html = renderFeedbackPage(report, OFFERED_LANGUAGES);
+      return new Response(html, {
+        headers: {
+          ...cors,
+          'content-type': 'text/html; charset=utf-8',
+          'cache-control': 'no-store',
+        },
+      });
+    }
+
     if (url.pathname === '/feedback/report' && request.method === 'GET') {
       const report = await feedbackReport();
+      const accept = request.headers.get('accept') || '';
+      const wantsHtml = url.searchParams.get('format') === 'html' || accept.includes('text/html');
+
+      if (wantsHtml) {
+        const html = renderFeedbackPage(report, OFFERED_LANGUAGES);
+        return new Response(html, {
+          headers: {
+            ...cors,
+            'content-type': 'text/html; charset=utf-8',
+            'cache-control': 'no-store',
+          },
+        });
+      }
+
       return Response.json({ report }, { headers: { ...cors, 'cache-control': 'no-store' } });
     }
 
