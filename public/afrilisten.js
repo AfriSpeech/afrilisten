@@ -224,12 +224,12 @@
     });
   }
 
-  /** Ask the service for a short-lived Gemini Live token, sized to `pieces`. */
-  function fetchToken(pieces) {
+  /** Ask the service to translate the first 100 characters via Thai pivot and mint a token. */
+  function fetchToken(text, lang) {
     return fetch(speechUrl('/token'), {
       method: 'POST',
       headers: speechHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ pieces: pieces }),
+      body: JSON.stringify({ text: text, lang: lang, pieces: 1 }),
     }).then(function (response) {
       if (!response.ok) return speechError(response, 'We could not start a session.');
       return response.json();
@@ -318,95 +318,19 @@
     }).catch(function () {});
   }
 
-  /* --------------------------------------------------------- text, chunked */
-  /* Ported from the pipeline that used to run server-side: split at most
-     `limit` characters, never mid-sentence if it can be helped, so a piece
-     never comes back with an audible seam or a chopped-off word. */
+  /* ------------------------------------------------------------- clipping */
 
-  var TERMINATOR = '.!?…';
-
-  function splitSentences(text) {
-    var out = [];
-    var current = '';
-    for (var i = 0; i < text.length; i += 1) {
-      current += text[i];
-      if (TERMINATOR.indexOf(text[i]) === -1) continue;
-      while (i + 1 < text.length && /["'’”)\]]/.test(text[i + 1])) { current += text[++i]; }
-      while (i + 1 < text.length && /\s/.test(text[i + 1])) { current += text[++i]; }
-      out.push(current.trim());
-      current = '';
-    }
-    if (current.trim()) out.push(current.trim());
-    return out.filter(Boolean);
-  }
-
-  function splitOversized(sentence, maxChars) {
-    var pieces = [];
-    var rest = sentence.trim();
-    while (rest.length > maxChars) {
-      var window = rest.slice(0, maxChars + 1);
-      var cut = Math.max(window.lastIndexOf('; '), window.lastIndexOf(', '), window.lastIndexOf(': '));
-      if (cut > maxChars * 0.4) {
-        pieces.push(rest.slice(0, cut + 1).trim());
-        rest = rest.slice(cut + 1).trim();
-        continue;
-      }
-      var space = window.lastIndexOf(' ');
-      var at = space > 0 ? space : maxChars;
-      pieces.push(rest.slice(0, at).trim());
-      rest = rest.slice(at).trim();
-    }
-    if (rest) pieces.push(rest);
-    return pieces;
-  }
-
-  function splitForSynthesis(text, maxChars) {
-    var clean = String(text || '').trim();
-    if (!clean) return [];
-    var limit = Math.max(40, Math.floor(maxChars));
-
-    var packed = [];
-    var current = '';
-    var sentences = splitSentences(clean);
-    for (var i = 0; i < sentences.length; i += 1) {
-      var sentence = sentences[i];
-      if (current && current.length + 1 + sentence.length <= limit) {
-        current += ' ' + sentence;
-      } else {
-        if (current) packed.push(current);
-        current = sentence;
-      }
-    }
-    if (current) packed.push(current);
-
-    var out = [];
-    for (var j = 0; j < packed.length; j += 1) {
-      if (packed[j].length <= limit) out.push(packed[j]);
-      else out = out.concat(splitOversized(packed[j], limit));
-    }
-    return out;
-  }
-
-  /** Keep at most `limit` characters, preferring to land on a full stop. */
-  function truncateToLimit(text, limit) {
+  /** Clip text to at most `limit` characters (default 100), landing on a boundary. */
+  function clipToLimit(text, limit) {
+    var max = limit || 100;
     var clean = String(text || '').replace(/\s+/g, ' ').trim();
-    var totalChars = clean.length;
-    if (totalChars <= limit) return { text: clean, truncated: false, totalChars: totalChars };
-
-    var window = clean.slice(0, limit);
-    var lastStop = Math.max(
-      window.lastIndexOf('. '), window.lastIndexOf('! '), window.lastIndexOf('? '),
-      window.lastIndexOf('。'), window.lastIndexOf('।'),
-    );
-
-    var cut;
-    if (lastStop >= limit * 0.8) {
-      cut = window.slice(0, lastStop + 1);
-    } else {
-      var lastSpace = window.lastIndexOf(' ');
-      cut = lastSpace > limit * 0.5 ? window.slice(0, lastSpace) : window;
-    }
-    return { text: cut.trim(), truncated: true, totalChars: totalChars };
+    if (clean.length <= max) return clean;
+    var slice = clean.slice(0, max);
+    var lastStop = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '));
+    if (lastStop >= max * 0.6) return slice.slice(0, lastStop + 1).trim();
+    var lastSpace = slice.lastIndexOf(' ');
+    if (lastSpace >= max * 0.5) return slice.slice(0, lastSpace).trim();
+    return slice.trim();
   }
 
   /* -------------------------------------------------------- Gemini, direct */
@@ -523,69 +447,34 @@
     return attempt(1);
   }
 
-  /** At most `limit` pieces spoken at once, results back in original order. */
-  function inParallel(items, limit, worker) {
-    return new Promise(function (resolve, reject) {
-      if (!items.length) return resolve([]);
-      var results = new Array(items.length);
-      var next = 0;
-      var active = 0;
-      var failed = false;
-
-      function pump() {
-        if (failed) return;
-        if (next >= items.length && active === 0) { resolve(results); return; }
-        while (!failed && active < limit && next < items.length) {
-          (function (index, item) {
-            active += 1;
-            worker(item, index).then(function (value) {
-              results[index] = value;
-              active -= 1;
-              pump();
-            }, function (err) {
-              if (!failed) { failed = true; reject(err); }
-            });
-          })(next, items[next]);
-          next += 1;
-        }
-      }
-      pump();
-    });
-  }
-
   /**
-   * Read `text` aloud in `lang`: chunk it, mint a token sized to the piece
-   * count, speak every piece over its own Live session (a few at a time),
-   * and join the raw audio into one clip. `speech` is the settings block from
-   * /languages, fetched once when the widget first loaded the catalogue.
+   * Speak `text` in `lang`: sends the first 100 characters to the server to translate
+   * via Thai pivot and universalise, then speaks the translated text over a single Gemini Live turn.
    */
-  function buildAudio(text, lang, languageName, speech) {
-    var maxChars = (speech && speech.maxChars) || 1000;
-    var chunkChars = (speech && speech.chunkChars) || 250;
+  function buildAudio(text, lang, languageName) {
+    var clip = clipToLimit(text, 100);
 
-    var capped = truncateToLimit(text, maxChars);
-    var pieces = splitForSynthesis(capped.text, chunkChars);
-    var instruction = lang
-      ? ('Translate the text below into ' + languageName + ' and speak your translation aloud, in ' + languageName + '.')
-      : '';
-
-    return Promise.all([fetchToken(pieces.length), loadGenai()]).then(function (results) {
+    return Promise.all([fetchToken(clip, lang), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
+      var textToSpeak = tokenInfo.text || clip;
+      var langName = tokenInfo.language || languageName || 'the target language';
 
-      return inParallel(pieces, PIECE_CONCURRENCY, function (piece) {
-        return withRetry(function () { return speakPiece(genai, tokenInfo, instruction, piece); }, PIECE_ATTEMPTS);
-      }).then(function (pcmPieces) {
-        var pcm = concatBytes(pcmPieces);
+      var instruction = 'You are a text-to-speech engine. Read the following text aloud, exactly as written, in ' +
+        langName + '. Speak clearly. Do not translate, do not summarise, do not answer, and do not add any preamble.';
+
+      return withRetry(function () {
+        return speakPiece(genai, tokenInfo, instruction, textToSpeak);
+      }, PIECE_ATTEMPTS).then(function (pcm) {
         var blob = wrapWav(pcm, PCM_SAMPLE_RATE);
         return {
           blob: blob,
           meta: {
-            language: languageName || 'Audio',
-            chars: capped.text.length,
-            totalChars: capped.totalChars,
-            truncated: capped.truncated,
-            pieces: pieces.length,
+            language: langName,
+            chars: clip.length,
+            totalChars: (text || '').length,
+            truncated: (text || '').length > clip.length,
+            pieces: 1,
           },
         };
       });
@@ -734,7 +623,7 @@
                 // honestly report progress mid-piece.
                 panel.innerHTML = '<div class="afs-listen__bar"></div><p class="afs-listen__note">Making a ' +
                   escapeHtml(languageName) + ' recording. It will start playing on its own.</p>';
-                return buildAudio(page.text, langCode, languageName, speechConfig).then(function (result) {
+                return buildAudio(page.text, langCode, languageName).then(function (result) {
                   if (key) putCachedAudio(key, result.blob, result.meta);
                   return result;
                 });

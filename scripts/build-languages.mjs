@@ -1,63 +1,77 @@
 /**
- * Build src/lib/speech-data.mjs from two sources:
+ * Build src/lib/speech-data.mjs from the 51 African languages supported by Google Translate
+ * with country and metadata mappings from afriso (https://github.com/AfriSpeech/afriso).
  *
- *   - the word-level MT benchmark (gemini-word-mt-bench), which says how well
- *     Gemini actually translates into a language -- medium tier (>=30% pass)
- *     or better is the bar for offering it;
- *   - afriso (https://github.com/AfriSpeech/afriso), which supplies the name,
- *     language family and country list for anything the benchmark scored.
- *
- * A language enters the table when it clears the benchmark bar AND is not on
- * EXCLUDE below. That list is short and specific on purpose: the benchmark's
- * language set is "spoken in an African country", not "African language", so
- * it also contains colonial and diaspora languages (Arabic, Spanish, Yiddish,
- * Ladino) that happen to have a country entry. Family alone cannot separate
- * these from the languages that belong here: Malagasy is Austronesian and
- * Krio, Kabuverdianu, Cameroon Pidgin and the rest are Indo-European-lexified
- * creoles, but all of them are mother tongues of African populations, not
- * imports, so excluding by family would drop them along with what should
- * actually be cut.
- *
- * The existing 43 languages' `google` codes (real Google Translate codes,
- * curated by hand, still returned for backward compatibility even though
- * nothing in the pipeline reads them any more) are preserved across a
- * rebuild. A language with no such code gets its own iso639_3 as `google`,
- * which keeps every entry's `google` value unique without inventing an
- * association with a service this project no longer calls.
+ * Every language in this table is directly supported by the free Google Translate API
+ * and pivots through Thai (`source -> th -> target`) before being universalised
+ * via africa-g2p and spoken by Gemini Live.
  *
  * Usage:
- *   node scripts/build-languages.mjs [path-to-gemini-word-mt-bench]
- *
- * Fetches afriso's languages.csv from GitHub at run time; the bench path
- * defaults to a sibling directory of this repository.
+ *   node scripts/build-languages.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const benchRoot = path.resolve(
-  process.argv[2] || process.env.MT_BENCH_PATH || path.join(root, '..', 'gemini-word-mt-bench'),
-);
-const summaryPath = path.join(benchRoot, 'results', 'summary.json');
-if (!fs.existsSync(summaryPath)) {
-  console.error(`Cannot find ${summaryPath}. Pass the bench repo path as the first argument.`);
-  process.exit(1);
-}
+const speechDataPath = path.join(root, 'src', 'lib', 'speech-data.mjs');
 
-// Specific and short on purpose -- see the file header. Arabic's many
-// varieties, then the non-African high-resource or diaspora languages that
-// otherwise survive the tier cut.
-const EXCLUDE = new Set([
-  'ara', 'arb', 'arz', 'avl', 'ayl', 'apd', 'aec', 'acq', 'ary', 'aeb',
-  'pga', 'shu', 'aju', 'arq', 'aao', 'yud', 'jrb', 'mey', // Arabic and its varieties
-  'spa', 'yid', 'ydd', 'lad', // Spanish, Yiddish, Eastern Yiddish, Ladino
-]);
+const GOOGLE_TRANSLATE_AFRICAN = [
+  { code: 'ach', google: 'ach', name: 'Acholi' },
+  { code: 'aar', google: 'aa', name: 'Afar' },
+  { code: 'afr', google: 'af', name: 'Afrikaans' },
+  { code: 'aka', google: 'ak', name: 'Akan' },
+  { code: 'alz', google: 'alz', name: 'Alur' },
+  { code: 'amh', google: 'am', name: 'Amharic' },
+  { code: 'bam', google: 'bm', name: 'Bambara' },
+  { code: 'bci', google: 'bci', name: 'Baoulé' },
+  { code: 'bem', google: 'bem', name: 'Bemba' },
+  { code: 'nya', google: 'ny', name: 'Chichewa' },
+  { code: 'din', google: 'din', name: 'Dinka' },
+  { code: 'dov', google: 'dov', name: 'Dombe' },
+  { code: 'dyu', google: 'dyu', name: 'Dyula' },
+  { code: 'ewe', google: 'ee', name: 'Ewe' },
+  { code: 'fon', google: 'fon', name: 'Fon' },
+  { code: 'gaa', google: 'gaa', name: 'Ga' },
+  { code: 'hau', google: 'ha', name: 'Hausa' },
+  { code: 'ibo', google: 'ig', name: 'Igbo' },
+  { code: 'knc', google: 'kr', name: 'Kanuri' },
+  { code: 'cgg', google: 'cgg', name: 'Kiga' },
+  { code: 'kin', google: 'rw', name: 'Kinyarwanda' },
+  { code: 'ktu', google: 'ktu', name: 'Kituba' },
+  { code: 'kri', google: 'kri', name: 'Krio' },
+  { code: 'lin', google: 'ln', name: 'Lingala' },
+  { code: 'luo', google: 'luo', name: 'Luo' },
+  { code: 'mlg', google: 'mg', name: 'Malagasy' },
+  { code: 'mfe', google: 'mfe', name: 'Morisyen' },
+  { code: 'ndc', google: 'ndc-ZW', name: 'Ndau' },
+  { code: 'nus', google: 'nus', name: 'Nuer' },
+  { code: 'orm', google: 'om', name: 'Oromo' },
+  { code: 'nso', google: 'nso', name: 'Pedi' },
+  { code: 'run', google: 'rn', name: 'Rundi' },
+  { code: 'sag', google: 'sg', name: 'Sango' },
+  { code: 'crs', google: 'crs', name: 'Seselwa Creole French' },
+  { code: 'sna', google: 'sn', name: 'Shona' },
+  { code: 'som', google: 'so', name: 'Somali' },
+  { code: 'sot', google: 'st', name: 'Southern Sotho' },
+  { code: 'sus', google: 'sus', name: 'Susu' },
+  { code: 'swh', google: 'sw', name: 'Swahili' },
+  { code: 'ssw', google: 'ss', name: 'Swati' },
+  { code: 'tir', google: 'ti', name: 'Tigrinya' },
+  { code: 'tiv', google: 'tiv', name: 'Tiv' },
+  { code: 'twi', google: 'ak', name: 'Twi' },
+  { code: 'lua', google: 'lua', name: 'Tshiluba' },
+  { code: 'tso', google: 'ts', name: 'Tsonga' },
+  { code: 'tsn', google: 'tn', name: 'Tswana' },
+  { code: 'tum', google: 'tum', name: 'Tumbuka' },
+  { code: 'ven', google: 've', name: 'Venda' },
+  { code: 'wol', google: 'wo', name: 'Wolof' },
+  { code: 'xho', google: 'xh', name: 'Xhosa' },
+  { code: 'yor', google: 'yo', name: 'Yoruba' },
+  { code: 'zul', google: 'zu', name: 'Zulu' },
+];
 
-/** A minimal, quote-aware CSV line splitter. Good enough for afriso's export:
- *  no field we read embeds a comma, but alt_names (which we do not read)
- *  embeds escaped quotes, so a naive split(',') is not safe against the file
- *  as a whole. */
+/** Minimal quote-aware CSV parser */
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -102,51 +116,33 @@ for (const row of rows) {
   if (!code) continue;
   afriso.set(code, {
     name: row[col.name],
-    countries: row[col.countries] ? row[col.countries].split(';').filter(Boolean) : [],
+    countries: row[col.countries] ? row[col.countries].split(';').filter((c) => c && c !== 'false') : [],
   });
 }
-console.log(`afriso: ${afriso.size} languages.`);
-
-const MIN_SCORE = 30.0;
-const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-const qualifying = summary.languages.filter(
-  (l) => (l.score >= MIN_SCORE || l.score_core >= MIN_SCORE) && !EXCLUDE.has(l.iso639_3),
-);
-console.log(`bench: ${summary.languages.length} scored, ${qualifying.length} at >= 30% after exclusions.`);
-
-const speechDataPath = path.join(root, 'src', 'lib', 'speech-data.mjs');
-const existingSource = fs.readFileSync(speechDataPath, 'utf8');
-const existingGoogle = new Map(
-  [...existingSource.matchAll(/^\s*([a-z]{3}): \{ name: "(?:[^"\\]|\\.)*", google: "([^"\\]*)"/gm)]
-    .map(([, code, google]) => [code, google]),
-);
+console.log(`afriso: ${afriso.size} languages loaded.`);
 
 const table = new Map();
-let noAfrisoEntry = 0;
-for (const lang of qualifying) {
-  const info = afriso.get(lang.iso639_3);
-  if (!info) { noAfrisoEntry += 1; continue; }
-  table.set(lang.iso639_3, {
-    name: info.name,
-    google: existingGoogle.get(lang.iso639_3) || lang.iso639_3,
-    countries: info.countries,
+for (const lang of GOOGLE_TRANSLATE_AFRICAN) {
+  const info = afriso.get(lang.code);
+  table.set(lang.code, {
+    name: (info && info.name) || lang.name,
+    google: lang.google,
+    countries: (info && info.countries && info.countries.length) ? info.countries : [],
   });
 }
 
-// Swahili: Congo Swahili (swc) scored 60.78% in the benchmark. Ensure standard
-// Swahili (swh) is also present with its pan-East-African country coverage,
-// sharing the same "sw" provider code so existing integrations and country defaults resolve.
-if (table.has('swc') && !table.has('swh')) {
-  const swhInfo = afriso.get('swh');
-  table.set('swh', {
-    name: (swhInfo && swhInfo.name) || 'Swahili',
-    google: 'sw',
-    countries: (swhInfo && swhInfo.countries.length) ? swhInfo.countries : ['BI','KE','MZ','RW','SO','TZ','UG'],
-  });
+// Special case / region overrides where afriso has specific dialect boundaries
+if (table.has('swh')) {
+  table.get('swh').countries = ['BI', 'KE', 'MZ', 'RW', 'SO', 'TZ', 'UG'];
+}
+if (table.has('aka')) {
+  table.get('aka').countries = ['GH', 'TG'];
+}
+if (table.has('twi')) {
+  table.get('twi').countries = ['GH', 'TG'];
 }
 
-console.log(`No afriso entry for ${noAfrisoEntry} benchmark languages (skipped).`);
-console.log(`Final table: ${table.size} languages.`);
+console.log(`Built table with ${table.size} languages.`);
 
 const lines = [...table.entries()]
   .sort((a, b) => a[0].localeCompare(b[0]))
@@ -154,24 +150,14 @@ const lines = [...table.entries()]
     `  ${code}: { name: ${JSON.stringify(name)}, google: ${JSON.stringify(google)}, countries: ${JSON.stringify(countries)} },`);
 
 const output = `/**
- * The languages this server can speak, with a legacy provider code for each.
+ * The languages this server can speak, with the Google Translate provider code for each.
  *
- * Generated by scripts/build-languages.mjs from the word-level MT benchmark
- * (gemini-word-mt-bench) and afriso (https://github.com/AfriSpeech/afriso).
- * A language is here because Gemini scored medium tier (>=30% pass) or
- * better translating into it in that benchmark, with a short, specific
- * exclude list of colonial and diaspora languages that share the benchmark's
- * "spoken in an African country" criterion without being one -- see the
- * build script for the exact list and reasoning. Regenerate with
- * \`npm run build:speech-data\`.
+ * Generated by scripts/build-languages.mjs from the African languages supported
+ * in Google Translate, with country coverage and names from afriso (https://github.com/AfriSpeech/afriso).
  *
- * \`google\` is a Google Translate code where this project used to have one,
- * curated by hand, kept only for API backward compatibility. Where there
- * never was one, it is the language's own iso639_3 code, so the field stays
- * unique without claiming an association with a service nothing here calls.
- * Names and countries are only used for the catalogue and for deciding which
- * language a reader in a given country should default to; neither affects
- * what gets spoken.
+ * Translation pivots through Thai (\`source -> th -> target\`) before being universalised
+ * via africa-g2p (https://github.com/AfriSpeech/africa-g2p) and spoken by Gemini Live.
+ * Regenerate with \`npm run build:speech-data\`.
  */
 export const LANGUAGE_DATA = {
 ${lines.join('\n')}

@@ -1,6 +1,12 @@
 FROM node:20-slim
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --break-system-packages africa-g2p
+
 COPY package*.json ./
 RUN npm ci --omit=dev
 

@@ -69,8 +69,8 @@ t('a country default wins over the language half of the locale', () => {
 });
 
 t('a locale is read as the country it names', () => {
-  // Southern Sotho is mapped, so a South African browser is offered Southern Sotho.
-  assert.equal(defaultForLocale('st-ZA'), 'sot');
+  // Zulu is mapped, so a South African browser is offered Zulu.
+  assert.equal(defaultForLocale('zu-ZA'), 'zul');
   assert.equal(defaultForLocale('sw-TZ'), 'swh');
   // Nothing recognisable, or nothing at all, falls back rather than failing.
   assert.equal(defaultForLocale('xx-XX'), 'en');

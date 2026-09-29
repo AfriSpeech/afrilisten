@@ -1,8 +1,8 @@
 # AfriListen
 
-A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **69 African languages**.
+A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **51 African languages**.
 
-**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.)** — your site does not need to be in an African language. AfriListen bridges the digital language divide by translating and narrating text live into a reader's native African language. It works just as seamlessly on sites already written in an African language (reading the text directly aloud or translating across languages).
+**Built primarily for websites in high-resource languages (e.g. English, French, Arabic, Portuguese, etc.)** — your site does not need to be in an African language. AfriListen translates the first 100 characters via Google Translate (using a semantic Thai pivot), universalises the text via [africa-g2p](https://github.com/AfriSpeech/africa-g2p) for clean phonetics, and generates native-sounding speech via Gemini Live. It works just as seamlessly on sites already written in an African language.
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 
@@ -10,13 +10,13 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 
 ## Supported Languages
 
-AfriListen supports all **69 African languages** that score **30% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+AfriListen supports **51 African languages** powered by Google Translate and universalised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
 
-- **East Africa (16):** Acoli (`ach`), Amharic (`amh`), Borana-Arsi-Guji Oromo (`gax`), Congo Swahili (`swc`), Digo (`dig`), Embu (`ebu`), Ganda (`lug`), Kikuyu (`kik`), Kinyarwanda (`kin`), Nyankole (`nyn`), Nyoro (`nyo`), Rundi (`run`), Somali (`som`), Swahili (`swh`), Tigrinya (`tir`), West Central Oromo (`gaz`).
-- **West Africa (30):** Abron (`abr`), Adangme (`ada`), Akan / Twi (`aka`), Baoulé (`bci`), Bassa (`bsq`), Bini (`bin`), Dagbani (`dag`), Dyula (`dyu`), Efik (`efi`), Ewe (`ewe`), Fanti (`fat`), Fon (`fon`), Ga (`gaa`), Gen (`gej`), Gun (`guw`), Igbo (`ibo`), Kabiyè (`kbp`), Klao (`klu`), Krio (`kri`), Kusaal (`kus`), Maasina Fulfulde (`ffm`), Mano (`mev`), Nigerian Pidgin (`pcm`), Nzima (`nzi`), Susu (`sus`), Tiv (`tiv`), Upper Guinea Crioulo (`pov`), Urhobo (`urh`), Wolof (`wol`), Yoruba (`yor`).
-- **Southern Africa (15):** Afrikaans (`afr`), Chichewa (`nya`), Kaonde (`kqn`), Kuanyama (`kua`), Lozi (`loz`), Ndonga (`ndo`), North Ndebele (`nde`), Pedi / Northern Sotho (`nso`), Shona (`sna`), Southern Sotho (`sot`), Tsonga (`tso`), Tswana (`tsn`), Tumbuka (`tum`), Venda (`ven`), Xhosa (`xho`).
-- **Central Africa (5):** Lingala (`lin`), Luba-Lulua (`lua`), Northeastern Dinka (`dip`), Sango (`sag`), Southwestern Dinka (`dik`).
-- **Indian Ocean & Islands (3):** Morisyen (`mfe`), Plateau Malagasy (`plt`), Seselwa Creole French (`crs`).
+- **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
+- **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Akan / Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
+- **Southern Africa (13):** Zulu (`zul`), Xhosa (`xho`), Afrikaans (`afr`), Shona (`sna`), Chichewa (`nya`), Tswana (`tsn`), Tsonga (`tso`), Pedi (`nso`), Southern Sotho (`sot`), Swati (`ssw`), Venda (`ven`), Tumbuka (`tum`), Ndau (`ndc`).
+- **Central Africa (7):** Lingala (`lin`), Sango (`sag`), Tshiluba (`lua`), Kituba (`ktu`), Dinka (`din`), Nuer (`nus`), Dombe (`dov`).
+- **Indian Ocean & Islands (3):** Malagasy (`mlg`), Mauritian Creole (`mfe`), Seychellois Creole (`crs`).
 
 The widget automatically loads and displays the latest available language catalogue when opened.
 
@@ -34,14 +34,16 @@ Paste this into the `<head>` or before the closing `</body>` tag of any web page
 
 **That's it!** A floating **Listen** button will appear on the bottom-right of your page. When readers click it, they can select their language and hear the page read aloud immediately.
 
-By default, the widget connects to AfriListen's shared community service — no API keys, accounts, or backend setup required.
+> **Usage Note:** The ready-to-integrate drop-in widget connects to AfriListen's shared community service by default and is intended for **basic and non-commercial use** (personal blogs, non-profits, testing, and evaluation). For high-traffic, production, or commercial websites, it is recommended to set up your own server using the code provided in this repository so you have dedicated capacity, your own rate limits, and full control over quotas. See [Self-Hosting & Commercial Use](#self-hosting--commercial-use).
 
 ---
 
 ## Features
 
-- **69 Quality-Vetted African Languages**: Languages scoring 30%+ on the corpus benchmark, including Swahili, Yoruba, Amharic, Lingala, Afrikaans, Ewe, Akan, Somali, Igbo, Wolof, Kinyarwanda, Xhosa, Shona, and more.
-- **Direct Browser Synthesis**: Gemini Live translates and speaks directly in the reader's browser — your website server handles zero audio bandwidth.
+- **51 Major African Languages**: Broad coverage including Swahili, Yoruba, Hausa, Amharic, Zulu, Igbo, Akan/Twi, Oromo, Somali, Wolof, Kinyarwanda, Xhosa, Shona, and more.
+- **High-Quality Translation**: Translated via Google Translate with a Thai pivot (`source -> th -> target`) and universalised through [africa-g2p](https://github.com/AfriSpeech/africa-g2p) before audio generation.
+- **Snappy 100-Char Audio**: Narrates the article's opening 100 characters in 1-2 seconds with zero chunking or stitching lag.
+- **Direct Browser Streaming**: Gemini Live speaks the universalised text directly to the reader's browser — zero audio proxying through your server.
 - **Instant Replay Cache**: Audio is saved in the reader's browser (IndexedDB). Listening to the same page again is instantaneous and uses zero extra data or quota.
 - **Reader Feedback**: Built-in thumbs up/down rating buttons let readers rate translation and speech quality, helping improve African language support.
 - **Mobile & Desktop Ready**: Responsive floating player with language search, audio playback controls, and customizable positioning.
@@ -79,11 +81,11 @@ You can customize the button's language, position, and label using `data-*` attr
 
 ---
 
-## Self-Hosting & Advanced Usage
+## Self-Hosting & Commercial Use
 
-AfriListen works out of the box on our free shared community tier. If your site has high traffic or you prefer a private deployment with your own Gemini API key and custom rate limits:
+The shared community endpoint is intended for basic and non-commercial websites. For commercial websites, high-traffic publications, or sites requiring dedicated capacity:
 
-- **Self-Hosting on Modal ($0/mo)**: Deploy your own token service in minutes. Free tier available. See [DEPLOY.md](DEPLOY.md).
+- **Deploy Your Own Server (Recommended for Commercial Sites)**: Run your own server using the provided code on Coolify (Docker), Modal, or any VPS in minutes. It runs on your own Gemini API key with custom rate limits and zero shared quota contention. See [DEPLOY.md](DEPLOY.md).
 - **Custom Player (API Reference)**: Build a custom audio player UI instead of using the drop-in widget. See [DEPLOY.md#building-a-custom-player-api-reference](DEPLOY.md#building-a-custom-player-api-reference).
 - **Language Filtering**: Restrict the language dropdown to specific countries or language codes. See [DEPLOY.md#choosing-which-languages-to-offer](DEPLOY.md#choosing-which-languages-to-offer).
 - **Translation Quality Feedback**: View how readers rate translations across languages. See [DEPLOY.md#feedback](DEPLOY.md#feedback).

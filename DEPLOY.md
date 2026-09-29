@@ -6,14 +6,9 @@ point the website widget at it. The service itself is described in
 
 ## What this actually is
 
-A small Node HTTP service with two routes, `GET /languages` and
-`POST /token`. It never sees a reader's page text and never produces audio:
-the browser does both, by opening a Gemini Live session directly once it has
-a token from here. See `src/index.mjs` and `src/lib/tokens.mjs`.
+A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the opening 100 characters of an article via Google Translate (using a semantic Thai pivot `source -> th -> target`), universalises the resulting text with [africa-g2p](https://github.com/AfriSpeech/africa-g2p) for clean phonetics, and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to speak the universalised text.
 
-That makes this cheap to run and simple to reason about: there is no queue, no
-shared cache, no audio pipeline, and nothing here is metered by how long a
-synthesis takes, because none happens here.
+That makes this fast and simple: there is no audio pipeline or audio transcoding on the server, no long-lived WebSocket connections through your server, and no audio bandwidth overhead.
 
 **Most people do not need to deploy this at all.** With no `data-endpoint` set,
 the widget already talks to this project's own reference deployment on this
@@ -349,34 +344,38 @@ Response:
 - `speech.model` is the exact model minted tokens are locked to.
 - `maxChars` and `chunkChars` indicate the maximum page length to read and the maximum piece size Gemini Live will reliably process in one turn.
 
-### 2. Mint a short-lived token
+### 2. Translate text & mint a token
 
 ```http
 POST /token
 x-listen-key: <your-listen-key>
 content-type: application/json
 
-{ "pieces": 4 }
+{ "text": "The president addressed the nation today regarding economic policies.", "lang": "swh" }
 ```
 
-- `pieces`: A hint indicating roughly how many chunks you plan to speak, used to budget session attempts.
-- The service never receives the article text.
+- `text`: Article text (the server automatically clips to the first 100 characters).
+- `lang`: Target language code (e.g. `swh`, `yor`, `hau`, `aka`, `zul`).
 
 Response:
 ```json
 {
   "token": "auth_tokens/...",
   "model": "gemini-3.1-flash-live-preview",
+  "voice": "Zephyr",
   "expireTime": "...",
-  "uses": 8
+  "text": "chuo kikuu kilitangaza mpango mpya...",
+  "originalTranslation": "Chuo kikuu kilitangaza mpango mpya...",
+  "language": "Swahili",
+  "languageCode": "swh"
 }
 ```
 
-The returned token is short-lived and constrained exclusively to the configured model, voice, and audio modality.
+The server translates the text via Thai pivot (`source -> th -> target`), universalises the phonetics with `africa-g2p`, and returns the universalised text alongside a short-lived ephemeral token.
 
-### 3. Connect to Gemini Live from the browser
+### 3. Stream audio from Gemini Live in the browser
 
-Split your text into chunks of at most `chunkChars` (preferring sentence boundaries). Then open a Live session per piece using `@google/genai` in the browser, passing the ephemeral token as the API key:
+Open a single Live session using `@google/genai` in the browser with the ephemeral token:
 
 ```js
 import { GoogleGenAI, Modality } from 'https://esm.sh/@google/genai@2.24.0';
@@ -391,12 +390,12 @@ const session = await ai.live.connect({
   config: { responseModalities: [Modality.AUDIO] },
   callbacks: {
     onopen: () => session.sendRealtimeInput({
-      text: `Translate the text below into ${languageName} and speak your translation aloud, in ${languageName}.\n\n${piece}`,
+      text: `You are a text-to-speech engine. Read the following text aloud, exactly as written, in ${language}: ${text}`,
     }),
     onmessage: (message) => {
       for (const part of message.serverContent?.modelTurn?.parts ?? []) {
         if (part.inlineData?.data) {
-          // base64 PCM16, 24 kHz mono chunk - collect it
+          // base64 PCM16, 24 kHz mono - collect it
         }
       }
       if (message.serverContent?.turnComplete) session.close();
@@ -405,7 +404,7 @@ const session = await ai.live.connect({
 });
 ```
 
-Join the raw PCM pieces in order, prepend a 44-byte WAV header (24 kHz, 16-bit mono), and pass the resulting `Blob` to an `<audio>` element or Web Audio context. See `public/afrilisten.js` for the reference client implementation.
+Prepend a 44-byte WAV header (24 kHz, 16-bit mono) to the received PCM bytes, and pass the resulting `Blob` to an `<audio>` element or Web Audio context. See `public/afrilisten.js` for the reference client implementation.
 
 ## Widget CDN caching & versioning
 

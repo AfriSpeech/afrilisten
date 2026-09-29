@@ -34,6 +34,8 @@ import { checkFlood, claimBudget } from './lib/ratelimit.mjs';
 import { mintToken } from './lib/tokens.mjs';
 import { recordFeedback, feedbackReport, renderFeedbackPage } from './lib/feedback.mjs';
 import { languageCatalogue, findSpeechLanguage, scopedLanguages, OFFERED_LANGUAGES } from './lib/languages.mjs';
+import { translateViaThai, clipToLimit } from './lib/translate.mjs';
+import { universalize } from './lib/universalize.mjs';
 import { config } from './lib/config.mjs';
 
 /* Shown to anyone integrating against this deployment. Two different
@@ -197,21 +199,16 @@ export default {
       return Response.json({ error: auth.error }, { status: auth.status, headers: cors });
     }
 
-    if (url.pathname === '/token' && request.method === 'POST') {
+    if ((url.pathname === '/token' || url.pathname === '/speak') && request.method === 'POST') {
       /* What is being protected is the Gemini quota, and it is spent the
          moment a token is minted, so this is the only route that is limited. */
       const flood = await checkFlood(request);
       if (!flood.ok) return limitResponse(flood, cors);
 
-      // There is nothing to validate here beyond a hint at how many pieces
-      // the browser is about to speak, used only to size the token's use
-      // count, so a body that is not JSON is treated as no hint rather than
-      // refused: unlike /speak in an earlier version of this service, there
-      // is no page text for a malformed body to be missing.
       let body = {};
       if ((request.headers.get('content-type') || '').includes('application/json')) {
         const raw = await request.clone().text();
-        if (raw.length <= 2000) {
+        if (raw.length <= 20_000) {
           try { body = JSON.parse(raw) ?? {}; } catch { body = {}; }
         }
       }
@@ -220,7 +217,27 @@ export default {
       const budget = await claimBudget(request);
       if (!budget.ok) return limitResponse(budget, cors);
 
-      const pieces = Math.max(1, Math.min(40, Number.parseInt(body.pieces, 10) || 4));
+      // Resolve target language (defaults to Swahili if unknown)
+      const targetLang = findSpeechLanguage(body.lang || body.languageCode)
+        || findSpeechLanguage(body.locale ? defaultForLocale(body.locale) : null)
+        || findSpeechLanguage('swh');
+
+      let spokenText = '';
+      let originalTranslation = '';
+
+      if (body.text && typeof body.text === 'string' && body.text.trim()) {
+        const clipped = clipToLimit(body.text, 100);
+        try {
+          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', body.source || 'auto');
+          originalTranslation = trans.text || clipped;
+          spokenText = await universalize(originalTranslation, targetLang?.code || 'swh');
+        } catch {
+          originalTranslation = clipped;
+          spokenText = clipped;
+        }
+      }
+
+      const pieces = Math.max(1, Math.min(40, Number.parseInt(body.pieces, 10) || 1));
       const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
 
       let minted;
@@ -240,8 +257,13 @@ export default {
         {
           token: minted.token,
           model: config.liveModel,
+          voice: config.ttsVoice,
           expireTime: minted.expireTime,
           uses,
+          text: spokenText,
+          originalTranslation,
+          language: targetLang?.name || 'Swahili',
+          languageCode: targetLang?.code || 'swh',
         },
         { headers: cors },
       );

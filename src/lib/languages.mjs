@@ -54,6 +54,15 @@ for (const lang of SPEECH_LANGUAGES) {
   if (!BY_AFRISO.has(lang.code)) BY_AFRISO.set(lang.code, lang);
 }
 
+// Also index any alias codes from LANGUAGE_DATA (e.g. twi -> aka)
+for (const [code, entry] of Object.entries(LANGUAGE_DATA)) {
+  const lower = code.toLowerCase();
+  if (!BY_AFRISO.has(lower)) {
+    const canonical = BY_GOOGLE.get(entry.google.toLowerCase()) || { code, ...entry, tts: true };
+    BY_AFRISO.set(lower, canonical);
+  }
+}
+
 /** Languages the widget may offer. */
 export const OFFERED_LANGUAGES = SPEECH_LANGUAGES.filter((l) => l.tts);
 
@@ -74,16 +83,16 @@ export function findSpeechLanguage(value) {
  */
 const DEFAULT_BY_COUNTRY = {
   // East
-  TZ: 'swh', KE: 'swh', UG: 'lug', RW: 'kin', BI: 'run', CD: 'lin',
-  CG: 'lin', GA: 'fon', CM: 'pcm', CF: 'sag', ET: 'amh', SO: 'som',
-  DJ: 'som', ER: 'tir', SS: 'dik', SD: 'tir',
+  TZ: 'swh', KE: 'swh', UG: 'swh', RW: 'kin', BI: 'run', CD: 'lin',
+  CG: 'lin', GA: 'fon', CM: 'tiv', CF: 'sag', ET: 'amh', SO: 'som',
+  DJ: 'som', ER: 'tir', SS: 'din', SD: 'din',
   // Southern
-  ZA: 'sot', ZW: 'sna', ZM: 'nya', BW: 'tsn', NA: 'afr', LS: 'sot',
-  SZ: 'tso', MW: 'nya',
+  ZA: 'zul', ZW: 'sna', ZM: 'bem', BW: 'tsn', NA: 'afr', LS: 'sot',
+  SZ: 'ssw', MW: 'nya',
   // West
-  NG: 'yor', GH: 'aka', TG: 'ewe', CI: 'dyu', SN: 'wol', GM: 'wol',
+  NG: 'yor', GH: 'aka', TG: 'ewe', CI: 'bci', SN: 'wol', GM: 'wol',
   // Islands & others
-  MG: 'plt', SC: 'crs', MU: 'mfe', SL: 'kri', LR: 'mev', GN: 'sus', BJ: 'fon',
+  MG: 'mlg', SC: 'crs', MU: 'mfe', SL: 'kri', GN: 'sus', BJ: 'fon',
 };
 
 /**
