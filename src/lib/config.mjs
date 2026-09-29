@@ -25,7 +25,7 @@ export const config = {
   // number being baked into the widget file. The whole cap is translated and
   // spoken, so a larger figure is a longer recording and a larger bill rather
   // than a better one.
-  maxChars: clampInt('LISTEN_MAX_CHARS', process.env.LISTEN_MAX_CHARS, 200, 5000, 2500),
+  maxChars: clampInt('LISTEN_MAX_CHARS', process.env.LISTEN_MAX_CHARS, 200, 5000, 1000),
   // Gemini Live will not hold a turn open long enough for a whole article, or
   // reliably for a piece much past this size, so the text is split into
   // pieces of at most this many characters.

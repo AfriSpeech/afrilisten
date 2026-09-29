@@ -224,12 +224,12 @@
     });
   }
 
-  /** Ask the service to translate the first 100 characters via Thai pivot and mint a token. */
-  function fetchToken(text, lang, source) {
+  /** Ask the service to translate the text via Thai pivot and mint a token for `voice`. */
+  function fetchToken(text, lang, source, voice) {
     return fetch(speechUrl('/token'), {
       method: 'POST',
       headers: speechHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ text: text, lang: lang, source: source || '', pieces: 1 }),
+      body: JSON.stringify({ text: text, lang: lang, source: source || '', voice: voice || 'Charon', pieces: 1 }),
     }).then(function (response) {
       if (!response.ok) return speechError(response, 'We could not start a session.');
       return response.json();
@@ -237,21 +237,13 @@
   }
 
   /**
-   * Send a thumbs up or down for the language just heard. Best-effort: a
-   * reader who rated the audio has already heard it, so a failed submission
-   * here is not worth interrupting them over. See it at /feedback/report
-   * (with the service's key) or aggregated at whatever page the deployer
-   * builds over that endpoint.
+   * Send a thumbs up or down for the language and voice just heard.
    */
-  function sendFeedback(languageCode, rating) {
-    // Not speechUrl(): this always goes to the shared FEEDBACK_ENDPOINT, not
-    // whatever token service this deployment configured, and it is public --
-    // no x-listen-key, because there is no per-deployer feedback service to
-    // gate access to any more.
+  function sendFeedback(languageCode, rating, voice) {
     return fetch(FEEDBACK_ENDPOINT + '/feedback', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ languageCode: languageCode, rating: rating }),
+      body: JSON.stringify({ languageCode: languageCode, rating: rating, voice: voice || 'Charon' }),
     }).then(function (response) { return response.ok; }, function () { return false; });
   }
 
@@ -260,18 +252,16 @@
      sessions for no reason: the words have not changed. The finished clip is
      kept in IndexedDB (not localStorage, which cannot hold a Blob this size
      without a base64 round trip that would bloat it further), keyed by a
-     hash of the exact text and language, so an edited page or a different
-     language is a cache miss rather than stale or wrong audio, and nothing
-     has to compare the reader's chosen language to what a cached entry was
-     actually spoken in. */
+     hash of the exact text, language and voice, so an edited page, a different
+     language or a different voice is a cache miss rather than stale audio. */
 
   var AUDIO_DB_NAME = 'afrispeech.audio-cache';
   var AUDIO_STORE = 'clips';
   var AUDIO_CACHE_TTL = 30 * 24 * 60 * 60 * 1000;
 
-  function cacheKeyFor(text, languageCode) {
+  function cacheKeyFor(text, languageCode, voice) {
     if (!window.crypto || !window.crypto.subtle) return Promise.reject(new Error('no SubtleCrypto'));
-    var bytes = new TextEncoder().encode(languageCode + '\u0000' + text);
+    var bytes = new TextEncoder().encode((voice || 'Charon') + '\u0000' + languageCode + '\u0000' + text);
     return crypto.subtle.digest('SHA-256', bytes).then(function (digest) {
       var hex = '';
       var view = new Uint8Array(digest);
@@ -473,8 +463,8 @@
    * Speak `text` in `lang`: translates the article on the server in one shot,
    * receives sentence-bounded chunks, and streams audio chunk-by-chunk in real time.
    */
-  function buildAudio(text, lang, languageName, source, audioCtx, onStatus) {
-    return Promise.all([fetchToken(text, lang, source), loadGenai()]).then(function (results) {
+  function buildAudio(text, lang, languageName, source, chosenVoice, audioCtx, onStatus) {
+    return Promise.all([fetchToken(text, lang, source, chosenVoice), loadGenai()]).then(function (results) {
       var tokenInfo = results[0];
       var genai = results[1];
       var chunks = tokenInfo.chunks && tokenInfo.chunks.length ? tokenInfo.chunks : [tokenInfo.text || text];
@@ -559,6 +549,7 @@
     '.afs-listen__btn:hover{background:#37845F;color:#fff}','.afs-listen__btn:disabled{opacity:.65;cursor:progress}',
     '.afs-listen__btn svg{width:16px;height:16px;fill:currentColor}',
     '.afs-listen__sel{appearance:none;-webkit-appearance:none;border:0;border-left:1px solid #D4DAD6;background:#fff url(\'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="10" height="6" viewBox="0 0 10 6"%3E%3Cpath d="M1 1l4 4 4-4" fill="none" stroke="%233B4540" stroke-width="1.5"/%3E%3C/svg%3E\') no-repeat right 10px center;background-size:10px 6px;color:#3B4540;font-size:13px;padding:0 26px 0 12px;cursor:pointer;max-width:150px}',
+    '.afs-listen__sel--voice{max-width:100px;font-size:12px;color:#5F6F66}',
     '.afs-listen__panel{margin-top:10px;background:#fff;border:1px solid #D4DAD6;border-radius:12px;box-shadow:0 8px 24px rgba(16,24,40,.12);padding:14px;width:300px;max-width:calc(100vw - 40px)}',
     '.afs-listen__panel[hidden]{display:none}',
     '.afs-listen__audio{width:100%;margin:2px 0 8px}',
@@ -612,12 +603,32 @@
       '<div class="afs-listen__row">' +
         '<button class="afs-listen__btn" type="button">' + icon() + '<span class="afs-listen__text">' + cfg.label + '</span></button>' +
         '<select class="afs-listen__sel" aria-label="Language"></select>' +
+        '<select class="afs-listen__sel afs-listen__sel--voice" aria-label="Voice">' +
+          '<option value="Charon">Charon</option>' +
+          '<option value="Puck">Puck</option>' +
+          '<option value="Kore">Kore</option>' +
+          '<option value="Fenrir">Fenrir</option>' +
+          '<option value="Aoede">Aoede</option>' +
+        '</select>' +
       '</div>' +
       '<div class="afs-listen__panel" hidden></div>';
 
     var button = root.querySelector('.afs-listen__btn');
     var select = root.querySelector('.afs-listen__sel');
+    var selectVoice = root.querySelector('.afs-listen__sel--voice');
     var panel = root.querySelector('.afs-listen__panel');
+
+    var savedVoice = '';
+    try { savedVoice = localStorage.getItem('afrilisten.voice') || ''; } catch (e) {}
+    var currentVoice = savedVoice || script.dataset.voice || 'Charon';
+    if (selectVoice) {
+      selectVoice.value = currentVoice;
+      selectVoice.addEventListener('change', function () {
+        currentVoice = selectVoice.value;
+        try { localStorage.setItem('afrilisten.voice', currentVoice); } catch (e) {}
+      });
+      selectVoice.addEventListener('click', function (event) { event.stopPropagation(); });
+    }
 
     var speechConfig = null;
 
@@ -705,17 +716,18 @@
       readThisPage()
         .then(function (page) {
           var langCode = select.value;
+          var chosenVoice = (selectVoice && selectVoice.value) || currentVoice || 'Charon';
           var pageLang = (document.documentElement.lang || (document.body && document.body.getAttribute('lang')) || '')
             .toLowerCase().split('-')[0].trim();
 
-          return cacheKeyFor(page.text, langCode)
+          return cacheKeyFor(page.text, langCode, chosenVoice)
             .catch(function () { return null; }) // no SubtleCrypto: skip the cache, not the reading
             .then(function (key) {
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
                 if (cached) return { blob: cached.blob, meta: cached.meta };
 
                 setStatus('Translating to ' + languageName + '…', true, false);
-                return buildAudio(page.text, langCode, languageName, pageLang, audioCtx, function onStatus(stage, lName, totalChunks, currentChunk) {
+                return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, audioCtx, function onStatus(stage, lName, totalChunks, currentChunk) {
                   if (stage === 'playing') {
                     var chunkLabel = totalChunks > 1 ? ' (' + currentChunk + '/' + totalChunks + ')' : '';
                     setStatus('Playing ' + lName + chunkLabel, false, true);
@@ -757,7 +769,7 @@
                 b.setAttribute('aria-pressed', String(b === btn));
               });
               rateLabel.textContent = 'Thanks for the feedback!';
-              sendFeedback(langCode, btn.getAttribute('data-rating'));
+              sendFeedback(langCode, btn.getAttribute('data-rating'), chosenVoice);
             });
           });
 

@@ -36,8 +36,9 @@ import { recordFeedback, feedbackReport, renderFeedbackPage } from './lib/feedba
 import { languageCatalogue, findSpeechLanguage, scopedLanguages, OFFERED_LANGUAGES } from './lib/languages.mjs';
 import { translateViaThai, clipToLimit } from './lib/translate.mjs';
 import { chunkBySentences } from './lib/chunk.mjs';
-import { universalize } from './lib/universalize.mjs';
 import { config } from './lib/config.mjs';
+
+export const ALLOWED_VOICES = new Set(['Charon', 'Puck', 'Kore', 'Fenrir', 'Aoede']);
 
 /* Shown to anyone integrating against this deployment. Two different
  * messages, because two different things are true depending on which
@@ -159,7 +160,11 @@ export default {
         return Response.json({ error: "rating must be \"up\" or \"down\"" }, { status: 400, headers: cors });
       }
 
-      await recordFeedback({ languageCode: language.code, rating: body.rating });
+      const voice = (typeof body?.voice === 'string' && ALLOWED_VOICES.has(body.voice.trim()))
+        ? body.voice.trim()
+        : (config.ttsVoice || 'Charon');
+
+      await recordFeedback({ languageCode: language.code, rating: body.rating, voice });
       return Response.json({ ok: true }, { headers: cors });
     }
 
@@ -233,10 +238,10 @@ export default {
       let chunks = [];
 
       if (body.text && typeof body.text === 'string' && body.text.trim()) {
-        const clipped = clipToLimit(body.text, config.maxChars || 2500);
+        const clipped = clipToLimit(body.text, config.maxChars || 1000);
         try {
           // If source matches target or is detected as target, translateViaThai skips the Thai hop
-          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle, config.maxChars || 2500);
+          const trans = await translateViaThai(clipped, targetLang?.google || 'sw', sourceGoogle, config.maxChars || 1000);
           originalTranslation = trans.text || clipped;
         } catch {
           originalTranslation = clipped;
@@ -249,11 +254,14 @@ export default {
       const pieces = Math.max(1, Math.min(40, chunks.length || Number.parseInt(body.pieces, 10) || 1));
       const uses = Math.min(config.tokenMaxUses, Math.max(config.tokenMinUses, pieces * config.tokenUsesPerPiece));
 
+      const requestedVoice = typeof body.voice === 'string' ? body.voice.trim() : '';
+      const chosenVoice = ALLOWED_VOICES.has(requestedVoice) ? requestedVoice : (config.ttsVoice || 'Charon');
+
       let minted;
       try {
         minted = await mintToken({
           model: config.liveModel,
-          voice: config.ttsVoice,
+          voice: chosenVoice,
           uses,
           expireMinutes: config.tokenExpireMinutes,
           newSessionMinutes: config.tokenNewSessionMinutes,
@@ -266,7 +274,7 @@ export default {
         {
           token: minted.token,
           model: config.liveModel,
-          voice: config.ttsVoice,
+          voice: chosenVoice,
           expireTime: minted.expireTime,
           uses,
           chunks,

@@ -6,7 +6,7 @@ point the website widget at it. The service itself is described in
 
 ## What this actually is
 
-A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the opening 100 characters of an article via Google Translate (using a semantic Thai pivot `source -> th -> target`), universalises the resulting text with [africa-g2p](https://github.com/AfriSpeech/africa-g2p) for clean phonetics, and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to speak the universalised text.
+A lightweight service with routes for `GET /languages`, `POST /token` (or `POST /speak`), `POST /feedback`, and `GET /feedback` (performance dashboard). It translates the article via Google Translate (using a semantic Thai pivot `source -> th -> target`), chunks the translated text along sentence boundaries, and mints a short-lived Gemini Live token. The browser then connects directly to Gemini Live over WebSocket to stream real-time audio.
 
 That makes this fast and simple: there is no audio pipeline or audio transcoding on the server, no long-lived WebSocket connections through your server, and no audio bandwidth overhead.
 
@@ -371,7 +371,7 @@ Response:
 }
 ```
 
-The server translates the text via Thai pivot (`source -> th -> target`), universalises the phonetics with `africa-g2p`, and returns the universalised text alongside a short-lived ephemeral token.
+The server translates the text via Thai pivot (`source -> th -> target`), chunks the translated text along sentence boundaries, and returns the chunks alongside a short-lived ephemeral token.
 
 ### 3. Stream audio from Gemini Live in the browser
 

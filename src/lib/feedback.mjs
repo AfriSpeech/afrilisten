@@ -31,18 +31,19 @@ function dirFor(languageCode) {
  * @param {object} options
  * @param {string} options.languageCode an AfriSpeech code, e.g. "swh"
  * @param {"up"|"down"} options.rating
+ * @param {string} [options.voice="Charon"]
  */
-export async function recordFeedback({ languageCode, rating }) {
+export async function recordFeedback({ languageCode, rating, voice = 'Charon' }) {
   const dir = dirFor(languageCode);
   await mkdir(dir, { recursive: true });
   const file = path.join(dir, `${Date.now()}-${randomUUID()}.json`);
-  await writeFile(file, JSON.stringify({ languageCode, rating, at: new Date().toISOString() }));
+  await writeFile(file, JSON.stringify({ languageCode, rating, voice, at: new Date().toISOString() }));
 }
 
 /**
- * Per-language counts, for the deployer's own report.
+ * Per-language counts and voice breakdowns, for the public report.
  *
- * @returns {Promise<Record<string, {up: number, down: number, total: number, upRate: number}>>}
+ * @returns {Promise<Record<string, {up: number, down: number, total: number, upRate: number, voices: Record<string, {up: number, down: number, total: number, upRate: number}>}>>}
  */
 export async function feedbackReport() {
   const report = {};
@@ -59,17 +60,36 @@ export async function feedbackReport() {
     const files = await readdir(dir).catch(() => []);
     let up = 0;
     let down = 0;
+    const voices = {};
     for (const name of files) {
       const parsed = await readFile(path.join(dir, name), 'utf8')
         .then((text) => JSON.parse(text))
         .catch(() => null);
       if (!parsed) continue; // a file half-written when read loses one vote, not the count
-      if (parsed.rating === 'up') up += 1;
-      else if (parsed.rating === 'down') down += 1;
+      const v = parsed.voice || 'Charon';
+      if (!voices[v]) voices[v] = { up: 0, down: 0, total: 0, upRate: null };
+
+      if (parsed.rating === 'up') {
+        up += 1;
+        voices[v].up += 1;
+      } else if (parsed.rating === 'down') {
+        down += 1;
+        voices[v].down += 1;
+      }
+      voices[v].total = voices[v].up + voices[v].down;
+      voices[v].upRate = voices[v].total > 0
+        ? Math.round((voices[v].up / voices[v].total) * 1000) / 10
+        : null;
     }
     const total = up + down;
     if (total === 0) continue;
-    report[code] = { up, down, total, upRate: Math.round((up / total) * 1000) / 10 };
+    report[code] = {
+      up,
+      down,
+      total,
+      upRate: Math.round((up / total) * 1000) / 10,
+      voices,
+    };
   }
   return report;
 }
@@ -93,7 +113,7 @@ function escapeHtml(str) {
 export function renderFeedbackPage(report = {}, languages = []) {
   // Compile list of languages with feedback stats
   const items = languages.map((lang) => {
-    const r = report[lang.code] || { up: 0, down: 0, total: 0, upRate: null };
+    const r = report[lang.code] || { up: 0, down: 0, total: 0, upRate: null, voices: {} };
     return {
       code: lang.code,
       name: lang.name,
@@ -102,6 +122,7 @@ export function renderFeedbackPage(report = {}, languages = []) {
       down: r.down,
       total: r.total,
       upRate: r.upRate,
+      voices: r.voices || {},
     };
   });
 
@@ -389,7 +410,7 @@ export function renderFeedbackPage(report = {}, languages = []) {
       <h1>Language Evaluation Benchmark</h1>
       <p class="desc">
         Live community evaluation metrics for speech translation across African languages.
-        Text is translated via Google Translate (Thai pivot), normalized with africa-g2p, and narrated through Gemini Live.
+        Text is translated via Google Translate (Thai pivot) and narrated through Gemini Live.
       </p>
       <div class="links">
         <a href="/feedback/report?format=json" target="_blank" rel="noopener">Raw JSON API</a>
@@ -516,8 +537,19 @@ export function renderFeedbackPage(report = {}, languages = []) {
           const countries = item.countries && item.countries.length ? item.countries.join(', ') : '—';
           const rateDisplay = hasRate ? (item.upRate + '%') : '—';
 
+          let voiceBreakdown = '';
+          if (item.voices && Object.keys(item.voices).length) {
+            const vparts = Object.entries(item.voices).map(function (pair) {
+              const vname = pair[0];
+              const vdata = pair[1];
+              const vrate = vdata.total > 0 ? (vdata.upRate + '%') : '—';
+              return vname + ': ' + vrate + ' (n=' + vdata.total + ')';
+            });
+            voiceBreakdown = '<div style="font-size:11px;color:var(--muted);margin-top:2px;font-weight:400">' + escapeHtml(vparts.join(' · ')) + '</div>';
+          }
+
           return '<tr>' +
-            '<td class="lang-col">' + escapeHtml(item.name) + '</td>' +
+            '<td class="lang-col">' + escapeHtml(item.name) + voiceBreakdown + '</td>' +
             '<td class="code-col">' + escapeHtml(item.code) + '</td>' +
             '<td class="countries-col" title="' + escapeHtml(countries) + '">' + escapeHtml(countries) + '</td>' +
             '<td class="num-col positive">' + (item.up ? ('+' + item.up) : '0') + '</td>' +

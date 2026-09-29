@@ -22,12 +22,17 @@ await t('no ratings yet is an empty report, not an error', async () => {
   assert.deepEqual(await feedbackReport(), {});
 });
 
-await t('ratings for one language are counted correctly', async () => {
-  await recordFeedback({ languageCode: 'swh', rating: 'up' });
-  await recordFeedback({ languageCode: 'swh', rating: 'up' });
-  await recordFeedback({ languageCode: 'swh', rating: 'down' });
+await t('ratings for one language are counted correctly and track voice', async () => {
+  await recordFeedback({ languageCode: 'swh', rating: 'up', voice: 'Charon' });
+  await recordFeedback({ languageCode: 'swh', rating: 'up', voice: 'Charon' });
+  await recordFeedback({ languageCode: 'swh', rating: 'down', voice: 'Puck' });
   const report = await feedbackReport();
-  assert.deepEqual(report.swh, { up: 2, down: 1, total: 3, upRate: 66.7 });
+  assert.equal(report.swh.up, 2);
+  assert.equal(report.swh.down, 1);
+  assert.equal(report.swh.total, 3);
+  assert.equal(report.swh.upRate, 66.7);
+  assert.equal(report.swh.voices.Charon.up, 2);
+  assert.equal(report.swh.voices.Puck.down, 1);
 });
 
 await t('two ratings written at the same instant are both kept', async () => {
@@ -35,13 +40,16 @@ await t('two ratings written at the same instant are both kept', async () => {
   // appended-to file: two writes landing in the same millisecond must not
   // overwrite one another the way a shared file under last-write-wins would.
   await Promise.all([
-    recordFeedback({ languageCode: 'yor', rating: 'up' }),
-    recordFeedback({ languageCode: 'yor', rating: 'up' }),
-    recordFeedback({ languageCode: 'yor', rating: 'down' }),
-    recordFeedback({ languageCode: 'yor', rating: 'down' }),
+    recordFeedback({ languageCode: 'yor', rating: 'up', voice: 'Charon' }),
+    recordFeedback({ languageCode: 'yor', rating: 'up', voice: 'Charon' }),
+    recordFeedback({ languageCode: 'yor', rating: 'down', voice: 'Kore' }),
+    recordFeedback({ languageCode: 'yor', rating: 'down', voice: 'Kore' }),
   ]);
   const report = await feedbackReport();
-  assert.deepEqual(report.yor, { up: 2, down: 2, total: 4, upRate: 50 });
+  assert.equal(report.yor.up, 2);
+  assert.equal(report.yor.down, 2);
+  assert.equal(report.yor.total, 4);
+  assert.equal(report.yor.upRate, 50);
 });
 
 await t('languages with no ratings are left out of the report', async () => {

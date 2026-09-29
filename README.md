@@ -12,7 +12,7 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 
 ## Supported Languages
 
-AfriListen supports **51 African languages** powered by Google Translate and universalised via [africa-g2p](https://github.com/AfriSpeech/africa-g2p). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+AfriListen supports **51 African languages** powered by Google Translate with real-time audio streamed through Gemini Live. Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
 
 - **East Africa (12):** Swahili (`swh`), Amharic (`amh`), Somali (`som`), Oromo (`orm`), Tigrinya (`tir`), Kinyarwanda (`kin`), Rundi (`run`), Acholi (`ach`), Alur (`alz`), Kiga (`cgg`), Luo (`luo`), Afar (`aar`).
 - **West Africa (15):** Yoruba (`yor`), Hausa (`hau`), Igbo (`ibo`), Twi (`aka`), Ewe (`ewe`), Wolof (`wol`), Fon (`fon`), Ga (`gaa`), Baoulé (`bci`), Bambara (`bam`), Dyula (`dyu`), Krio (`kri`), Susu (`sus`), Tiv (`tiv`), Kanuri (`knc`).
