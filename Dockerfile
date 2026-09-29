@@ -4,8 +4,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     python3-pip \
+    espeak-ng \
+    wamerican \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache-dir --break-system-packages africa-g2p
+    && pip install --no-cache-dir --break-system-packages africa-g2p phonemizer
 
 COPY package*.json ./
 RUN npm ci --omit=dev

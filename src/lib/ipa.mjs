@@ -19,11 +19,101 @@ class IpaWorker {
   ensureStarted() {
     if (this.proc) return;
     const py = `
-import sys, json
+import sys, json, re
 try:
     import africa_g2p
 except Exception:
     africa_g2p = None
+
+eng_g2p = None
+if africa_g2p:
+    try:
+        eng_g2p = africa_g2p.EnglishG2P()
+    except Exception:
+        pass
+
+# Load system English dictionary if available
+english_words = set()
+for path in ['/usr/share/dict/words', '/usr/share/dict/american-english', '/usr/share/dict/british-english']:
+    try:
+        with open(path) as f:
+            english_words = {line.strip().lower() for line in f if len(line.strip()) >= 3}
+            if english_words: break
+    except Exception:
+        pass
+
+AFRICAN_STOPWORDS = {
+    'me', 'wo', 'no', 'so', 'pa', 'ba', 'da', 'ne', 'mu', 'ho', 'yi', 'de', 'na', 'sa', 'se', 'nti',
+    'kasa', 'ye', 'bi', 'ma', 'we', 'te', 'sen', 'nso', 'ara', 'nyinaa', 'akwaaba', 'ya', 'wa',
+    'za', 'kwa', 'ni', 'la', 'cha', 'vya', 'katika', 'huyu', 'hapa', 'yake', 'yao', 'yangu',
+    'yetu', 'gani', 'nani', 'wapi', 'lini', 'kama', 'jambo', 'habari', 'asante', 'karibu', 'sana',
+    'ti', 'awon', 'kan', 'fun', 'lati', 'wipe', 'pe', 'bayi', 'bawo', 'ina', 'yau', 'gobe', 'sannu'
+}
+
+AFRICAN_SPECIAL_CHARS = set('ɛɔɗɓƙƴŋɲẹọṣịụṅáàèéìíòóùúãõâêîôû')
+
+def is_english_token(token, lang):
+    w_low = token.lower()
+    # 1. Non-latin (Ge'ez, Arabic, etc) -> never English
+    if re.search(r'[\u1200-\u137F\u0600-\u06FF]', token):
+        return False
+    # 2. African diacritics / special characters -> never English
+    if any(c in AFRICAN_SPECIAL_CHARS for c in w_low):
+        return False
+    # 3. Known African common words -> never English
+    if w_low in AFRICAN_STOPWORDS:
+        return False
+    # 4. Acronyms (e.g. WHO, BBC, UN, COVID, NGO, CEO, AI)
+    if len(token) >= 2 and token.isupper() and token.isalpha():
+        return True
+    # 5. Invalid characters in target language (e.g. Twi lacks c not in ch, v, x, z, q, j)
+    if lang in ('twi', 'aka') and re.search(r'[vxzqj]|c(?!h)', w_low):
+        return True
+    # 6. English dictionary lookup (length >= 4 to avoid tiny cross-linguistic collisions)
+    if len(w_low) >= 4 and w_low in english_words:
+        return True
+    return False
+
+def convert_to_ipa_hybrid(text, lang):
+    if not africa_g2p or not text:
+        return text
+    tokens = re.split(r'([^\\W\\d_]+)', text)
+    has_english = False
+    for t in tokens:
+        if re.match(r'^[^\\W\\d_]+$', t) and is_english_token(t, lang):
+            has_english = True
+            break
+    if not has_english:
+        try:
+            return africa_g2p.convert_to_ipa(text, lang)
+        except Exception:
+            return text
+
+    # Process mixed text token by token
+    result = []
+    word_cache = {}
+    for t in tokens:
+        if not t:
+            continue
+        if re.match(r'^[^\\W\\d_]+$', t):
+            if t in word_cache:
+                result.append(word_cache[t])
+                continue
+            if is_english_token(t, lang) and eng_g2p:
+                try:
+                    ipa_word = eng_g2p.convert(t).strip()
+                except Exception:
+                    ipa_word = africa_g2p.convert_to_ipa(t, lang)
+            else:
+                try:
+                    ipa_word = africa_g2p.convert_to_ipa(t, lang)
+                except Exception:
+                    ipa_word = t
+            word_cache[t] = ipa_word
+            result.append(ipa_word)
+        else:
+            result.append(t)
+    return ''.join(result)
 
 for line in sys.stdin:
     if not line.strip(): continue
@@ -33,13 +123,7 @@ for line in sys.stdin:
         code = req.get("lang", "").lower()
         if code == "aka": code = "twi"
         elif code == "swc": code = "swh"
-        if africa_g2p and text:
-            try:
-                res = africa_g2p.convert_to_ipa(text, code)
-            except Exception:
-                res = text
-        else:
-            res = text
+        res = convert_to_ipa_hybrid(text, code)
         sys.stdout.write(json.dumps({"id": req.get("id"), "text": res}) + "\\n")
         sys.stdout.flush()
     except Exception:
