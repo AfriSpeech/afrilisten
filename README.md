@@ -2,7 +2,7 @@
 
 A lightweight, drop-in web widget that allows readers to listen to any web page spoken aloud in **69 African languages**.
 
-**Built primarily for websites written in English, French, Portuguese, or other global languages** — bridging the digital language divide by translating and narrating text live into a reader's native African language. It works just as seamlessly on sites already written in an African language (reading the text directly aloud or translating across languages).
+**Built primarily for websites written in English, French, Portuguese, Arabic, or other high-resource languages** — your site does not need to be in an African language. AfriListen bridges the digital language divide by translating and narrating text live into a reader's native African language. It works just as seamlessly on sites already written in an African language (reading the text directly aloud or translating across languages).
 
 Zero setup. No framework required. No build step. Works out of the box on any website with a single `<script>` tag.
 
@@ -37,7 +37,7 @@ By default, the widget connects to AfriListen's shared community service — no 
 
 ## How It Reads Your Website
 
-- **Websites in English, French, Portuguese, etc. (Primary Use Case):** Most web content across Africa and worldwide is published in global languages. When a reader clicks Listen on an article written in English, French, Portuguese, or another language, AfriListen translates each section on the fly and speaks it aloud in their selected African mother tongue.
+- **Websites in English, French, Portuguese, Arabic, etc. (Primary Use Case):** Your website does not need to be written in an African language! Most web content across Africa and worldwide is published in global high-resource languages. When a reader clicks Listen on an article written in English, French, Portuguese, Arabic, or another language, AfriListen translates each section on the fly and speaks it aloud in their selected African mother tongue.
 - **Websites Already in an African Language:** If your website is already written in one of the 69 supported African languages (e.g. an article published in Swahili, Yoruba, or Amharic), AfriListen reads the text directly aloud in that language, or can translate it into any of the other 68 African languages if the reader prefers.
 
 ---

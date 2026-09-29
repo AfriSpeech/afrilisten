@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Token service for AfriListen: mints short-lived Gemini Live tokens so the browser can translate and speak a page itself.",
+  "description": "Drop-in Listen widget that translates and speaks any web page (English, French, Arabic, etc.) aloud in 69 African languages.",
   "license": "MIT",
   "main": "src/index.mjs",
   "scripts": {
