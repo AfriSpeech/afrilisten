@@ -501,19 +501,25 @@
         if (idx >= chunks.length) {
           var fullPcm = concatBytes(allPcmPieces);
           var blob = wrapWav(fullPcm, PCM_SAMPLE_RATE);
-          return Promise.resolve({
-            blob: blob,
-            meta: {
-              language: langName,
-              chars: chunks.reduce(function (acc, c) { return acc + c.length; }, 0),
-              totalChars: (text || '').length,
-              truncated: false,
-              pieces: chunks.length,
-            },
-            stop: function () {
-              activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
-              activeSources = [];
-            },
+          var remainingSec = audioCtx ? Math.max(0, nextPlayTime - audioCtx.currentTime) : 0;
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve({
+                blob: blob,
+                fromCache: false,
+                meta: {
+                  language: langName,
+                  chars: chunks.reduce(function (acc, c) { return acc + c.length; }, 0),
+                  totalChars: (text || '').length,
+                  truncated: false,
+                  pieces: chunks.length,
+                },
+                stop: function () {
+                  activeSources.forEach(function (s) { try { s.stop(); } catch (e) {} });
+                  activeSources = [];
+                },
+              });
+            }, Math.ceil(remainingSec * 1000));
           });
         }
 
@@ -685,6 +691,8 @@
 
       function stopAndClose() {
         if (currentSession && currentSession.stop) currentSession.stop();
+        var audioEl = panel.querySelector('audio');
+        if (audioEl) { try { audioEl.pause(); audioEl.removeAttribute('src'); } catch (e) {} }
         if (audioCtx && audioCtx.close) try { audioCtx.close(); } catch (e) {}
         panel.hidden = true;
         reset();
@@ -724,7 +732,7 @@
             .catch(function () { return null; }) // no SubtleCrypto: skip the cache, not the reading
             .then(function (key) {
               return (key ? getCachedAudio(key) : Promise.resolve(null)).then(function (cached) {
-                if (cached) return { blob: cached.blob, meta: cached.meta };
+                if (cached) return { blob: cached.blob, meta: cached.meta, fromCache: true };
 
                 setStatus('Translating to ' + languageName + '…', true, false);
                 return buildAudio(page.text, langCode, languageName, pageLang, chosenVoice, audioCtx, function onStatus(stage, lName, totalChunks, currentChunk) {
@@ -744,11 +752,12 @@
           var url = URL.createObjectURL(result.blob);
           var meta = result.meta;
           var langCode = select.value;
+          var autoplayAttr = result.fromCache ? ' autoplay' : '';
           panel.innerHTML =
             '<div class="afs-listen__head"><span class="afs-listen__lang">' +
               escapeHtml(meta.language || 'Audio') + '</span>' +
               '<button class="afs-listen__close" type="button" aria-label="Close">&times;</button></div>' +
-            '<audio class="afs-listen__audio" controls autoplay src="' + url + '"></audio>' +
+            '<audio class="afs-listen__audio" controls' + autoplayAttr + ' src="' + url + '"></audio>' +
             '<div class="afs-listen__rate">' +
               '<span class="afs-listen__rate-label">How did that sound?</span>' +
               '<button class="afs-listen__rate-btn" type="button" data-rating="up" aria-label="Good" aria-pressed="false">' + thumbIcon(false) + '</button>' +
