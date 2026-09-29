@@ -8,6 +8,20 @@ Zero setup. No framework required. No build step. Works out of the box on any we
 
 ---
 
+## Supported Languages
+
+AfriListen supports all **69 African languages** that score **30% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
+
+- **East Africa (16):** Acoli (`ach`), Amharic (`amh`), Borana-Arsi-Guji Oromo (`gax`), Congo Swahili (`swc`), Digo (`dig`), Embu (`ebu`), Ganda (`lug`), Kikuyu (`kik`), Kinyarwanda (`kin`), Nyankole (`nyn`), Nyoro (`nyo`), Rundi (`run`), Somali (`som`), Swahili (`swh`), Tigrinya (`tir`), West Central Oromo (`gaz`).
+- **West Africa (30):** Abron (`abr`), Adangme (`ada`), Akan / Twi (`aka`), Baoulé (`bci`), Bassa (`bsq`), Bini (`bin`), Dagbani (`dag`), Dyula (`dyu`), Efik (`efi`), Ewe (`ewe`), Fanti (`fat`), Fon (`fon`), Ga (`gaa`), Gen (`gej`), Gun (`guw`), Igbo (`ibo`), Kabiyè (`kbp`), Klao (`klu`), Krio (`kri`), Kusaal (`kus`), Maasina Fulfulde (`ffm`), Mano (`mev`), Nigerian Pidgin (`pcm`), Nzima (`nzi`), Susu (`sus`), Tiv (`tiv`), Upper Guinea Crioulo (`pov`), Urhobo (`urh`), Wolof (`wol`), Yoruba (`yor`).
+- **Southern Africa (15):** Afrikaans (`afr`), Chichewa (`nya`), Kaonde (`kqn`), Kuanyama (`kua`), Lozi (`loz`), Ndonga (`ndo`), North Ndebele (`nde`), Pedi / Northern Sotho (`nso`), Shona (`sna`), Southern Sotho (`sot`), Tsonga (`tso`), Tswana (`tsn`), Tumbuka (`tum`), Venda (`ven`), Xhosa (`xho`).
+- **Central Africa (5):** Lingala (`lin`), Luba-Lulua (`lua`), Northeastern Dinka (`dip`), Sango (`sag`), Southwestern Dinka (`dik`).
+- **Indian Ocean & Islands (3):** Morisyen (`mfe`), Plateau Malagasy (`plt`), Seselwa Creole French (`crs`).
+
+The widget automatically loads and displays the latest available language catalogue when opened.
+
+---
+
 ## Quick Start
 
 Paste this into the `<head>` or before the closing `</body>` tag of any web page:
@@ -62,20 +76,6 @@ You can customize the button's language, position, and label using `data-*` attr
 | `data-label` | `Listen` | Custom text for the button (e.g. `Listen`, `Soma`, `Kasa`). |
 | `data-endpoint` | *(shared default)* | Optional: URL of your own self-hosted backend. See [DEPLOY.md](DEPLOY.md). |
 | `data-key` | *(shared default)* | Optional: API key for your self-hosted backend (`x-listen-key`). |
-
----
-
-## Supported Languages
-
-AfriListen supports all **69 African languages** that score **30% or higher** on the corpus-grounded benchmark ([gemini-word-mt-bench](https://github.com/AfriSpeech/gemini-word-mt-bench)). Live community quality scores are available on the [Language Performance Dashboard](https://listen.afrispeech.org/feedback).
-
-- **East Africa (16):** Acoli (`ach`), Amharic (`amh`), Borana-Arsi-Guji Oromo (`gax`), Congo Swahili (`swc`), Digo (`dig`), Embu (`ebu`), Ganda (`lug`), Kikuyu (`kik`), Kinyarwanda (`kin`), Nyankole (`nyn`), Nyoro (`nyo`), Rundi (`run`), Somali (`som`), Swahili (`swh`), Tigrinya (`tir`), West Central Oromo (`gaz`).
-- **West Africa (30):** Abron (`abr`), Adangme (`ada`), Akan / Twi (`aka`), Baoulé (`bci`), Bassa (`bsq`), Bini (`bin`), Dagbani (`dag`), Dyula (`dyu`), Efik (`efi`), Ewe (`ewe`), Fanti (`fat`), Fon (`fon`), Ga (`gaa`), Gen (`gej`), Gun (`guw`), Igbo (`ibo`), Kabiyè (`kbp`), Klao (`klu`), Krio (`kri`), Kusaal (`kus`), Maasina Fulfulde (`ffm`), Mano (`mev`), Nigerian Pidgin (`pcm`), Nzima (`nzi`), Susu (`sus`), Tiv (`tiv`), Upper Guinea Crioulo (`pov`), Urhobo (`urh`), Wolof (`wol`), Yoruba (`yor`).
-- **Southern Africa (15):** Afrikaans (`afr`), Chichewa (`nya`), Kaonde (`kqn`), Kuanyama (`kua`), Lozi (`loz`), Ndonga (`ndo`), North Ndebele (`nde`), Pedi / Northern Sotho (`nso`), Shona (`sna`), Southern Sotho (`sot`), Tsonga (`tso`), Tswana (`tsn`), Tumbuka (`tum`), Venda (`ven`), Xhosa (`xho`).
-- **Central Africa (5):** Lingala (`lin`), Luba-Lulua (`lua`), Northeastern Dinka (`dip`), Sango (`sag`), Southwestern Dinka (`dik`).
-- **Indian Ocean & Islands (3):** Morisyen (`mfe`), Plateau Malagasy (`plt`), Seselwa Creole French (`crs`).
-
-The widget automatically loads and displays the latest available language catalogue when opened.
 
 ---
 
