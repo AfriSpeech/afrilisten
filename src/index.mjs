@@ -117,7 +117,7 @@ export default {
        an unrecognised one is not refused, it falls back to English, so a
        reader who asked for one language is quietly given another. The origin
        allowlist still applies. */
-    if (url.pathname === '/languages' && request.method === 'GET') {
+    if (url.pathname === '/languages' && (request.method === 'GET' || request.method === 'HEAD')) {
       return Response.json(
         {
           notice: USAGE_NOTICE,
@@ -160,10 +160,10 @@ export default {
       return Response.json({ ok: true }, { headers: cors });
     }
 
-    if ((url.pathname === '/feedback' || url.pathname === '/performance') && request.method === 'GET') {
+    if ((url.pathname === '/feedback' || url.pathname === '/performance') && (request.method === 'GET' || request.method === 'HEAD')) {
       const report = await feedbackReport();
       const html = renderFeedbackPage(report, OFFERED_LANGUAGES);
-      return new Response(html, {
+      return new Response(request.method === 'HEAD' ? null : html, {
         headers: {
           ...cors,
           'content-type': 'text/html; charset=utf-8',
@@ -172,14 +172,14 @@ export default {
       });
     }
 
-    if (url.pathname === '/feedback/report' && request.method === 'GET') {
+    if (url.pathname === '/feedback/report' && (request.method === 'GET' || request.method === 'HEAD')) {
       const report = await feedbackReport();
       const accept = request.headers.get('accept') || '';
       const wantsHtml = url.searchParams.get('format') === 'html' || accept.includes('text/html');
 
       if (wantsHtml) {
         const html = renderFeedbackPage(report, OFFERED_LANGUAGES);
-        return new Response(html, {
+        return new Response(request.method === 'HEAD' ? null : html, {
           headers: {
             ...cors,
             'content-type': 'text/html; charset=utf-8',
@@ -188,7 +188,7 @@ export default {
         });
       }
 
-      return Response.json({ report }, { headers: { ...cors, 'cache-control': 'no-store' } });
+      return Response.json(request.method === 'HEAD' ? null : { report }, { headers: { ...cors, 'cache-control': 'no-store' } });
     }
 
     // Cheapest gate first: reject before doing any work.
